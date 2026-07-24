@@ -2,6 +2,7 @@
   "name": "global-carbonforge",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "main": "index.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",

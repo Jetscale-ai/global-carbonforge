@@ -142,3 +142,7 @@ This repository does not yet prove energy, throughput, latency, quality, cost,
 or availability claims. It also does not provision a capacity reservation,
 Savings Plan, public service, or production-ready multi-node inference fleet.
 Those decisions require explicit evidence and review at the roadmap gates.
+
+## License
+
+This repository is licensed under the [MIT License](LICENSE).
