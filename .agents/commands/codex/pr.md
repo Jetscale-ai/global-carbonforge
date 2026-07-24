@@ -1,0 +1,1 @@
+../../../../governance/.agents/commands/pr.md

@@ -1,0 +1,8 @@
+name: global-carbonforge
+description: >-
+  Private CarbonForge-optimized inference runtime for the Jetscale Global
+  Services AWS account.
+runtime:
+  name: nodejs
+  options:
+    packagemanager: pnpm

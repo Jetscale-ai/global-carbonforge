@@ -1,0 +1,1 @@
+../../../../../governance/.agents/vendor/gsd/get-shit-done/templates/phase-prompt.md

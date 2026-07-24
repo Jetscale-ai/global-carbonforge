@@ -1,0 +1,27 @@
+bin/
+coverage/
+dist/
+lib/
+node_modules/
+tsconfig.tsbuildinfo
+
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+# Local planning and scratch files
+.planning/
+.tmp/
+
+# Lockfiles from other package managers
+yarn.lock
+package-lock.json
+
+# Runtime material must never be committed
+*.key
+*.license
+.env
+.env.*
+carbonforge-logs/
+huggingface-cache/

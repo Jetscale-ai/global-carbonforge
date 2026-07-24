@@ -1,0 +1,1 @@
+../../../../governance/.agents/commands/hello-world.md

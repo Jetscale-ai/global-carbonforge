@@ -1,0 +1,14 @@
+config:
+  aws:region: us-east-1
+  global-carbonforge:targetAwsAccountId: "728827482753"
+  global-carbonforge:networkStackRef: JetScale/global-cloud-network/live
+  global-carbonforge:identityStackRef: JetScale/global-cloud-identity/live
+  global-carbonforge:modelName: Qwen/Qwen3.5-27B-FP8
+  global-carbonforge:engineVersion: "0.25"
+  global-carbonforge:maxModelLength: 32768
+  global-carbonforge:tensorParallelSize: 1
+  global-carbonforge:gpuMemoryUtilization: 0.7
+  global-carbonforge:maxConcurrentSequences: 4
+  global-carbonforge:runtimePort: 8000
+  global-carbonforge:scheduler: ltr-promptlen
+  global-carbonforge:requestTraceMode: normal

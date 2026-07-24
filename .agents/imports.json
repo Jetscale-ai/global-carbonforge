@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "sourcePackage": "./codex",
+  "imports": [
+    {
+      "bundle": "baseline"
+    },
+    {
+      "bundle": "pulumi-infra"
+    },
+    {
+      "bundle": "node-service"
+    }
+  ],
+  "localOverrides": {},
+  "components": [
+    "skills",
+    "agents",
+    "commands",
+    "context",
+    "statuslines",
+    "settings",
+    "templates"
+  ],
+  "include": [],
+  "exclude": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**",
+    "**/vendor/**"
+  ]
+}

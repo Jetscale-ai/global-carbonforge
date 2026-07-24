@@ -1,0 +1,159 @@
+# Repository Operations: global-carbonforge
+
+**Status:** Operational Details  
+**Scope:** `global-carbonforge` only  
+**Branch Protection:** Protected IaC repository; changes require feature branches
+and pull requests
+
+## 1. Local Oracles
+
+Use the repository scripts once the Pulumi project is scaffolded. The expected
+minimum validation surface is:
+
+```bash
+pnpm install
+pnpm build
+pnpm test
+pnpm pulumi preview -s JetScale/global-carbonforge/live
+```
+
+Do not claim these commands pass until the project and scripts exist and the
+commands have actually been run. A preview requires authenticated,
+read-capable credentials for the Global Services account.
+
+Governance projection validation is available immediately:
+
+```bash
+node ../governance/scripts/onboard-governed-project.mjs --repo . --dry-run
+```
+
+## 2. Governance Refresh
+
+`../governance` owns the imported agent workspace. Refresh it with:
+
+```bash
+pnpm --dir ../governance govern --repo ../global-carbonforge
+```
+
+To change bundle selection, update the source through the governance command
+rather than manually replacing generated symlinks:
+
+```bash
+pnpm --dir ../governance govern \
+  --repo ../global-carbonforge \
+  --bundle baseline \
+  --bundle pulumi-infra \
+  --bundle node-service
+```
+
+Repo-local files such as this one and `AGENTS.md` are not generated projections
+and remain owned by `global-carbonforge`.
+
+## 3. Planned Stack Contract
+
+### Upstream stack references
+
+| Stack                                 | Required outputs                              | Purpose                                          |
+| ------------------------------------- | --------------------------------------------- | ------------------------------------------------ |
+| `JetScale/global-cloud-network/live`  | `vpcId`, `privateSubnetIds`                   | Place H100 compute in the shared private network |
+| `JetScale/global-cloud-identity/live` | `pulumiOidcProviderArn`, `pulumiOidcAudience` | Create the stack-scoped Pulumi deployment role   |
+
+### Downstream outputs
+
+The stack should expose a narrow, non-secret contract suitable for
+`global-inference-litellm` or catalog composition:
+
+| Output            | Purpose                                  |
+| ----------------- | ---------------------------------------- |
+| `openAiBaseUrl`   | Private OpenAI-compatible `/v1` base URL |
+| `modelName`       | Served model identifier                  |
+| `healthUrl`       | Private runtime health endpoint          |
+| `securityGroupId` | Consumer ingress-rule coordination       |
+| `instanceId`      | Operations and evidence correlation      |
+
+Do not export credentials, tokens, licence contents, rendered user data, or
+full-trace content.
+
+## 4. H100 Capacity and Cost Gate
+
+Before previewing a concrete instance resource, verify and record:
+
+1. The selected H100 EC2 instance type is available in `us-east-1` and fits the
+   single-H100 requirement.
+2. The Global Services account has sufficient On-Demand vCPU quota.
+3. At least one existing private subnet maps to an Availability Zone with
+   capacity or an approved Capacity Reservation.
+4. Hourly and monthly cost estimates are attached to the issue or pull request.
+5. Shutdown, restart, replacement, and capacity-loss behavior are explicit.
+
+Do not silently substitute a multi-GPU instance, another GPU generation, Spot
+capacity, or a different region. Those substitutions change cost and runtime
+semantics and require human review.
+
+## 5. Runtime Bootstrap Expectations
+
+The implementation should prefer a reproducible launch template or equivalent
+immutable bootstrap process. It must:
+
+- use an NVIDIA-compatible, version-pinned base image;
+- install or verify the required Docker and GPU runtime versions;
+- authenticate to the CarbonForge registry without printing credentials;
+- pull a digest-pinned CarbonForge image;
+- retrieve the licence and Hugging Face token at runtime;
+- mount the licence read-only;
+- persist the Hugging Face model cache on an encrypted volume;
+- start the service under a supervised unit with bounded restart behavior;
+- emit content-safe logs and normal traces by default;
+- expose port `8000` only through the workload security group.
+
+User data is observable through AWS APIs to sufficiently privileged principals.
+It may contain secret identifiers and retrieval commands, but never secret
+values.
+
+## 6. Deployment Guardrails
+
+- Agents may run non-mutating builds, tests, static checks, and Pulumi previews.
+- Agents must not run `pulumi up`, `pulumi destroy`, or AWS mutation commands
+  against live resources without explicit human authorization.
+- Routine applies belong in Pulumi Deployments using the stack-scoped OIDC role.
+- Local live mutation is break-glass only and must be ticketed and auditable.
+- Preserve the AWS account guard and never weaken it to unblock a preview.
+
+## 7. Post-Deploy Evidence
+
+After a human-authorized apply, collect all of the following without exposing
+secrets or prompt content:
+
+1. The EC2 instance reaches the running and status-check-passed states.
+2. The supervised CarbonForge service is healthy.
+3. The private health URL responds from an authorized VPC client.
+4. A minimal OpenAI-compatible completion succeeds with the configured model.
+5. LiteLLM can reach the endpoint and route a minimal request.
+6. Normal request tracing records token counts and latency without prompt or
+   output text.
+7. GPU utilization and memory metrics demonstrate that the process is using the
+   intended H100.
+
+Qualitative marketing claims such as "More Compute Per Watt" are not benchmark
+evidence. Do not publish energy, latency, throughput, quality, or cost claims
+without a documented baseline, workload, measurement method, and numerical
+results.
+
+## 8. Secrets and Sensitive Output
+
+Never print or commit:
+
+- CarbonForge access tokens or licence contents;
+- `HF_TOKEN` values;
+- AWS credentials or Pulumi secret plaintext;
+- full request traces, prompts, or generated outputs;
+- Docker login command lines containing literal credentials.
+
+When debugging, prefer metadata such as secret ARN, version ID, HTTP status,
+request ID, token counts, and redacted error class.
+
+## 9. Git and Audit Workflow
+
+Prepare changes on a feature branch and leave commit authority to the human
+unless explicitly requested otherwise. Material commit messages require an
+`audit_log:` section with applicable invariants and validation evidence.

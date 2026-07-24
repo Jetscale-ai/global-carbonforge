@@ -1,0 +1,1 @@
+../../../../../governance/.agents/vendor/gsd/agents/gsd-phase-researcher.md
