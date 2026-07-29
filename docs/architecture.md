@@ -2,10 +2,11 @@
 
 ## Scope
 
-`global-carbonforge` will own the private H100 compute, inference workload
-security group, runtime bootstrap, health contract, and endpoint outputs for a
-CarbonForge-optimized model runtime. The current Pulumi program is intentionally
-contract-only and creates none of those resources.
+`global-carbonforge` owns the private H100 compute, inference workload security
+group, runtime bootstrap, health contract, and endpoint outputs for a
+CarbonForge-optimized model runtime. The resources are implemented and previewed
+but have not been applied. The external capacity blocker is tracked in
+[issue #1](https://github.com/Jetscale-ai/global-carbonforge/issues/1).
 
 ## Dependency graph
 
@@ -29,28 +30,70 @@ flowchart LR
   H100 --> Telemetry[Approved telemetry destination]
 ```
 
-The eventual H100 workload is private. It must have no public IPv4 address and
-must not expose SSH. Port `8000` is limited to explicitly authorized workload
-security groups, initially the LiteLLM ECS task security group. Administration
-uses Systems Manager Session Manager.
+The H100 workload is private, has no public IPv4 address, and exposes no SSH.
+Its security group starts with no ingress. After CarbonForge is deployed,
+LiteLLM creates a standalone TCP `8000` ingress rule targeting the exported
+CarbonForge security group and sourced from its own ECS task security group.
+This keeps stack dependencies one-way. Administration uses Systems Manager
+Session Manager.
 
-## Future output contract
+## Container supply chain
 
-Once a runtime exists and passes verification, exports for the LiteLLM consumer
-may include:
+The selected `linux/amd64` evaluation image is mirrored privately at
+`ghcr.io/jetscale-ai/carbonforge-eval`. The Pulumi configuration records both its
+fixed release tag and the independently inspected GHCR digest
+`sha256:a3999f60989e47d9059cfedb0999a2342adb41cad1f20999938ac3a8f4f0d5de`.
+The program exports a digest-pinned immutable reference; the release tag is
+provenance metadata, not the deployment selector.
+
+The GHCR digest differs from the vendor source-registry digest. Both are retained
+as separate provenance facts. Runtime access will use a least-privilege GHCR pull
+token rather than the temporary vendor source credential.
+
+## Vendor-informed host baseline
+
+CarbonForge's public AWS Terraform sample confirms `p5.4xlarge` as its minimal
+one-H100 client host, an NVIDIA Deep Learning AMI family, and a 150 GiB encrypted
+root volume. The implementation pins `ami-02c52c305263fdec5` and private subnet
+`subnet-0ce370d0b178797ab` in `us-east-1a`. Current On-Demand pricing is
+`$6.88/hour`, while the account's effective On-Demand G/VT quota is `0`. AWS
+request `06437a82af484fe5b785bdd8fe871dd7UA0EPVGB` asks for 32 vCPUs; at least 16
+must be effective before one `p5.4xlarge` can launch. Approval does not guarantee
+physical H100 capacity in `us-east-1a`.
+
+The sample is intentionally minimal and public-facing. This architecture does
+not adopt its default VPC, public IPv4, SSH key, CIDR ingress, user-data secrets,
+most-recent AMI lookup, or mutable container tag. The full pattern-by-pattern
+analysis is in
+[`vendor-terraform-assessment.md`](vendor-terraform-assessment.md).
+
+## Downstream output contract
+
+The stack exports the narrow non-secret contract LiteLLM needs:
 
 - `openAiBaseUrl`: private OpenAI-compatible base URL;
 - `healthUrl`: private health endpoint;
-- `modelName`: pinned serving model identifier;
+- `modelName` and `modelRevision`: pinned serving-model identity;
 - `securityGroupId`: workload security group for consumer ingress rules; and
 - `instanceId`: operational identity for SSM and alarms.
 
-Until then, the scaffold returns `deploymentMaturity: scaffold`, `null` endpoint
-fields, and validated configuration metadata. Consumers must reject that
-non-deployed contract.
+Before apply, Pulumi reports endpoint/resource outputs as unknown and
+`deploymentMaturity: planned-runtime`. The downstream status is
+`provisioned-after-apply`; consumers must not treat the contract as reachable
+until the stack is applied and runtime verification succeeds.
 
 ## Deployment identity
 
-`global-cloud-identity` owns the Pulumi Cloud OIDC provider. This stack may
-later create its own least-privilege, stack-scoped deployment role trusted by
-that provider. It does not own or change the central OIDC anchor.
+`global-cloud-identity` owns the Pulumi Cloud OIDC provider. This stack creates
+its own stack-scoped Pulumi Deployments role trusted only for
+`pulumi:deploy:org:JetScale:project:global-carbonforge:stack:live:*`. It does not
+own or change the central OIDC anchor. IAM and Secrets Manager permissions are
+name/account scoped; EC2 launch and describe permissions retain AWS-required
+wildcard resources.
+
+There is an intentional first-deployment bootstrap boundary: the role is managed
+by the stack that it will later deploy, so it cannot authorize its own initial
+creation. Separately approved existing Global Services authority must create the
+role once. Pulumi Deployments must then assume the exported `deploymentRoleArn`,
+and a preview under that role must verify that its policy covers the complete
+program before routine applies use it.

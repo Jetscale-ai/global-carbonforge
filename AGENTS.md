@@ -122,8 +122,8 @@ The selected bundles are:
 
 ## 5. Secrets, Licensing, and Supply Chain
 
-- Store the CarbonForge registry credential, CarbonForge licence, and
-  Hugging Face token in AWS Secrets Manager or another approved secret store.
+- Store the CarbonForge registry credential and licence as Pulumi-encrypted
+  stack secrets. Qwen3.5-27B-FP8 is public and requires no Hugging Face token.
 - Do not place secret values in Pulumi config plaintext, EC2 user data, AMIs,
   launch-template metadata, shell history, logs, or stack outputs.
 - Materialize secrets only at runtime with restrictive file permissions and

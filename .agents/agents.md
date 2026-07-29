@@ -7,8 +7,7 @@ and pull requests
 
 ## 1. Local Oracles
 
-Use the repository scripts once the Pulumi project is scaffolded. The expected
-minimum validation surface is:
+Use the repository scripts for the expected minimum validation surface:
 
 ```bash
 pnpm install
@@ -49,7 +48,7 @@ pnpm --dir ../governance govern \
 Repo-local files such as this one and `AGENTS.md` are not generated projections
 and remain owned by `global-carbonforge`.
 
-## 3. Planned Stack Contract
+## 3. Implemented Stack Contract
 
 ### Upstream stack references
 
@@ -60,8 +59,9 @@ and remain owned by `global-carbonforge`.
 
 ### Downstream outputs
 
-The stack should expose a narrow, non-secret contract suitable for
-`global-inference-litellm` or catalog composition:
+The previewed stack exposes a narrow, non-secret contract suitable for
+`global-inference-litellm` or catalog composition. Resource-dependent values
+remain unknown until apply:
 
 | Output            | Purpose                                  |
 | ----------------- | ---------------------------------------- |
@@ -76,11 +76,13 @@ full-trace content.
 
 ## 4. H100 Capacity and Cost Gate
 
-Before previewing a concrete instance resource, verify and record:
+Before applying the concrete instance resource, verify and record:
 
 1. The selected H100 EC2 instance type is available in `us-east-1` and fits the
    single-H100 requirement.
-2. The Global Services account has sufficient On-Demand vCPU quota.
+2. The Global Services account has sufficient On-Demand G/VT vCPU quota. The
+   current request and evidence are tracked in
+   [issue #1](https://github.com/Jetscale-ai/global-carbonforge/issues/1).
 3. At least one existing private subnet maps to an Availability Zone with
    capacity or an approved Capacity Reservation.
 4. Hourly and monthly cost estimates are attached to the issue or pull request.
@@ -90,20 +92,23 @@ Do not silently substitute a multi-GPU instance, another GPU generation, Spot
 capacity, or a different region. Those substitutions change cost and runtime
 semantics and require human review.
 
-## 5. Runtime Bootstrap Expectations
+## 5. Runtime Bootstrap Contract
 
-The implementation should prefer a reproducible launch template or equivalent
-immutable bootstrap process. It must:
+The implemented EC2 user-data bootstrap is reproducible and replaces the
+instance when its rendered input changes. It must continue to:
 
 - use an NVIDIA-compatible, version-pinned base image;
 - install or verify the required Docker and GPU runtime versions;
-- authenticate to the CarbonForge registry without printing credentials;
+- authenticate to the private GHCR mirror without printing credentials;
 - pull a digest-pinned CarbonForge image;
-- retrieve the licence and Hugging Face token at runtime;
-- mount the licence read-only;
-- persist the Hugging Face model cache on an encrypted volume;
+- consume the registry token and licence from Pulumi secret outputs without
+  rendering either value into user data;
+- mount the materialized licence read-only;
+- prefetch the pinned public Hugging Face model revision and persist its cache on
+  an encrypted volume;
 - start the service under a supervised unit with bounded restart behavior;
-- emit content-safe logs and normal traces by default;
+- emit content-safe operational logs with request tracing explicitly off until
+  an approved sink and retention design exist;
 - expose port `8000` only through the workload security group.
 
 User data is observable through AWS APIs to sufficiently privileged principals.
@@ -112,10 +117,13 @@ values.
 
 ## 6. Deployment Guardrails
 
-- Agents may run non-mutating builds, tests, static checks, and Pulumi previews.
+- Agents may run non-mutating builds, tests, static checks, quota polls, capacity
+  checks, and Pulumi previews.
 - Agents must not run `pulumi up`, `pulumi destroy`, or AWS mutation commands
   against live resources without explicit human authorization.
 - Routine applies belong in Pulumi Deployments using the stack-scoped OIDC role.
+  The role's first creation requires separately approved existing authority;
+  thereafter, verify a preview while assuming the exported `deploymentRoleArn`.
 - Local live mutation is break-glass only and must be ticketed and auditable.
 - Preserve the AWS account guard and never weaken it to unblock a preview.
 
@@ -129,8 +137,8 @@ secrets or prompt content:
 3. The private health URL responds from an authorized VPC client.
 4. A minimal OpenAI-compatible completion succeeds with the configured model.
 5. LiteLLM can reach the endpoint and route a minimal request.
-6. Normal request tracing records token counts and latency without prompt or
-   output text.
+6. Request tracing is confirmed off; after a separately approved telemetry
+   change, standard traces contain counts and latency without prompt/output text.
 7. GPU utilization and memory metrics demonstrate that the process is using the
    intended H100.
 
@@ -144,7 +152,7 @@ results.
 Never print or commit:
 
 - CarbonForge access tokens or licence contents;
-- `HF_TOKEN` values;
+- registry-token or licence values;
 - AWS credentials or Pulumi secret plaintext;
 - full request traces, prompts, or generated outputs;
 - Docker login command lines containing literal credentials.
