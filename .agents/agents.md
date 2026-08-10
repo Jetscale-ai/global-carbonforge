@@ -52,10 +52,10 @@ and remain owned by `global-carbonforge`.
 
 ### Upstream stack references
 
-| Stack                                 | Required outputs                              | Purpose                                          |
-| ------------------------------------- | --------------------------------------------- | ------------------------------------------------ |
-| `JetScale/global-cloud-network/live`  | `vpcId`, `privateSubnetIds`                   | Place H100 compute in the shared private network |
-| `JetScale/global-cloud-identity/live` | `pulumiOidcProviderArn`, `pulumiOidcAudience` | Create the stack-scoped Pulumi deployment role   |
+| Stack                                 | Required outputs                              | Purpose                                        |
+| ------------------------------------- | --------------------------------------------- | ---------------------------------------------- |
+| `JetScale/global-cloud-network/live`  | `regionalNetworks`                            | Select the configured region's private network |
+| `JetScale/global-cloud-identity/live` | `pulumiOidcProviderArn`, `pulumiOidcAudience` | Create the stack-scoped Pulumi deployment role |
 
 ### Downstream outputs
 
@@ -78,9 +78,9 @@ full-trace content.
 
 Before applying the concrete instance resource, verify and record:
 
-1. The selected H100 EC2 instance type is available in `us-east-1` and fits the
-   single-H100 requirement.
-2. The Global Services account has sufficient On-Demand G/VT vCPU quota. The
+1. The selected H100 EC2 instance type is available in the configured region
+   and Availability Zone and fits the single-H100 requirement.
+2. The Global Services account has sufficient regional On-Demand P vCPU quota. The
    current request and evidence are tracked in
    [issue #1](https://github.com/Jetscale-ai/global-carbonforge/issues/1).
 3. At least one existing private subnet maps to an Availability Zone with

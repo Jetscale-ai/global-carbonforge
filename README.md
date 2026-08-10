@@ -40,7 +40,8 @@ flowchart TD
 
 Direct upstream contracts:
 
-- `JetScale/global-cloud-network/live`: `vpcId`, `privateSubnetIds`
+- `JetScale/global-cloud-network/live`: `regionalNetworks`, selected by the
+  configured AWS region
 - `JetScale/global-cloud-identity/live`: `pulumiOidcProviderArn`,
   `pulumiOidcAudience`
 
@@ -58,10 +59,10 @@ this initial deployment.
 | Immutable container reference | `ghcr.io/jetscale-ai/carbonforge-eval@sha256:a3999f60989e47d9059cfedb0999a2342adb41cad1f20999938ac3a8f4f0d5de` |
 | Hardware target               | One NVIDIA H100                                                                                                |
 | EC2 shape                     | `p5.4xlarge`                                                                                                   |
-| On-Demand price evidence      | `$6.88/hour`; about `$5,022.40` for 730 hours before EBS, NAT, and transfer                                    |
+| Cost evidence                 | Must be refreshed for Jakarta before apply; existing Virginia pricing is not regional evidence                 |
 | Encrypted root volume         | `150 GiB` `gp3`                                                                                                |
-| Pinned AMI                    | `ami-02c52c305263fdec5` (`Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04) 20260728`)               |
-| Private placement             | `subnet-0ce370d0b178797ab`, `us-east-1a`                                                                       |
+| Pinned AMI                    | `ami-06bc172b9832559df` (`Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04) 20260728`)               |
+| Private placement             | `subnet-06a995e4116d8061b`, `ap-southeast-3a`                                                                  |
 | Public IPv4 / SSH             | Disabled                                                                                                       |
 | Tensor parallelism            | `1`                                                                                                            |
 | Inspected engine version      | vLLM `0.26.0` from the digest-pinned image                                                                     |
@@ -147,14 +148,15 @@ must use Pulumi Deployments.
 The implementation is ready for a governed apply only after all of these gates
 are satisfied:
 
-1. AWS approves the request tracked in
-   [issue #1](https://github.com/Jetscale-ai/global-carbonforge/issues/1), and the
-   effective On-Demand G/VT quota is verified at 16 vCPUs or more.
-2. `p5.4xlarge` offering and physical capacity are rechecked in `us-east-1a`.
+1. The effective Jakarta On-Demand P quota remains at least 16 vCPUs; 32 vCPUs
+   was verified before this migration.
+2. `p5.4xlarge` offering and physical capacity are rechecked in
+   `ap-southeast-3a`.
 3. The GHCR pull token and CarbonForge licence are confirmed current without
    printing their values.
 4. The reviewed changes are landed and a fresh `--diff` preview from that exact
-   commit still contains only intended creates.
+   commit contains only the intended Jakarta creates, regional replacements, and
+   IAM policy update.
 5. A human explicitly approves the recorded cost and live apply.
 6. Existing authority bootstraps this stack's Pulumi Deployments role; Pulumi
    Deployments is then configured to assume the exported `deploymentRoleArn`.

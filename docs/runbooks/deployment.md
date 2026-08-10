@@ -2,19 +2,18 @@
 
 ## Preconditions
 
-Do not apply until AWS raises the account's On-Demand G/VT quota from `0` to at
-least 16 vCPUs, physical `p5.4xlarge` capacity is rechecked, the recorded
-`$6.88/hour` cost is explicitly approved, and the live action is authorized.
-Quota request `06437a82af484fe5b785bdd8fe871dd7UA0EPVGB` asks for 32 vCPUs and is
-tracked in [issue #1](https://github.com/Jetscale-ai/global-carbonforge/issues/1).
-Quota approval alone is not apply authorization. The implementation currently
-has a clean non-destructive preview only.
+Do not apply until Jakarta's effective On-Demand P quota remains at least 16
+vCPUs, physical `p5.4xlarge` capacity is rechecked, current Jakarta cost is
+explicitly approved, and the live action is authorized. The effective quota was
+verified at 32 vCPUs. Quota approval alone is not apply authorization. The
+reviewed Jakarta migration preview includes regional replacements as well as the
+new instance.
 
 Verify that:
 
 - the quota request is approved and the effective regional quota, not only the
   request status, is at least 16 vCPUs;
-- `p5.4xlarge` remains offered in `us-east-1a`; physical capacity is still an
+- `p5.4xlarge` remains offered in `ap-southeast-3a`; physical capacity is still an
   apply-time dependency unless a separately approved reservation exists;
 - the target is `JetScale/global-carbonforge/live` in account `728827482753`;
 - a least-privilege `ghcrPullToken` and the reissued CarbonForge licence have
@@ -34,8 +33,8 @@ Verify that:
   and Pulumi/AWS Secrets Manager handling are reviewed;
 - the [runtime invocation](../runtime-invocation.md) explicitly overrides the
   pinned image's dry-run Qwen2.5 default with the reviewed Qwen3.5 command;
-- the pinned AMI is `ami-02c52c305263fdec5` in private subnet
-  `subnet-0ce370d0b178797ab` (`us-east-1a`), and its driver is confirmed compatible
+- the pinned AMI is `ami-06bc172b9832559df` in private subnet
+  `subnet-06a995e4116d8061b` (`ap-southeast-3a`), and its driver is confirmed compatible
   with the image's CUDA 13 requirement;
 - the subnet retains active NAT egress for AWS APIs, GHCR, NVIDIA package setup,
   and the public Hugging Face model download; VPC DNS and NACL behavior are
@@ -48,16 +47,16 @@ Verify that:
 
 ## Quota and capacity recheck
 
-Poll the existing request through the authenticated preflight environment:
+Query the effective quota and current instance-type offering through the
+authenticated preflight environment:
 
 ```bash
-bash -c 'source scripts/preflight.sh && aws service-quotas get-requested-service-quota-change --request-id 06437a82af484fe5b785bdd8fe871dd7UA0EPVGB --region us-east-1'
+bash -c 'source scripts/preflight.sh && aws service-quotas get-service-quota --service-code ec2 --quota-code L-417A185B --region ap-southeast-3'
+bash -c 'source scripts/preflight.sh && aws ec2 describe-instance-type-offerings --region ap-southeast-3 --location-type availability-zone --filters Name=instance-type,Values=p5.4xlarge Name=location,Values=ap-southeast-3a'
 ```
 
-After it reports approval, separately query quota `L-DB2E81BA` and confirm the
-effective value has propagated to at least 16. Recheck the `p5.4xlarge` offering
-in `us-east-1a`. An offering result validates the configuration but cannot prove
-that AWS has an H100 available at launch time.
+Confirm the effective quota is at least 16. An offering result validates the
+configuration but cannot prove that AWS has an H100 available at launch time.
 
 ## Preview
 
@@ -73,8 +72,10 @@ pnpm pulumi preview --diff -s JetScale/global-carbonforge/live
 ```
 
 The wrapper authenticates to Global Services. It permits previews but blocks
-local live mutations by default. The reviewed preview contains 16 creates and no
-updates, replacements, or deletions.
+local live mutations by default. Review the fresh Jakarta migration preview for
+only the expected create, regional replacements, and IAM policy update. Confirm
+that no existing CarbonForge EC2 instance is present before accepting the
+replacement-bearing plan.
 
 Review the detailed instance properties for:
 

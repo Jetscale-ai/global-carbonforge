@@ -7,10 +7,10 @@
 | Model                        | `Qwen/Qwen3.5-27B-FP8`                               | Dense 27B FP8 model from supplied source material      |
 | Private container mirror     | `ghcr.io/jetscale-ai/carbonforge-eval:v0.1.8-v0.1.3` | Mirrored privately; deployment resolves by digest      |
 | GPU                          | One H100                                             | Capacity and instance selection still require approval |
-| EC2 shape                    | `p5.4xlarge`                                         | 16 G/VT vCPUs required; current quota is zero          |
-| Root volume                  | `150 GiB` `gp3`                                      | Encrypted; ~33.7 GB model manifest leaves PoC headroom |
-| Pinned AMI                   | `ami-02c52c305263fdec5`                              | Ubuntu 22.04 NVIDIA-driver DLAMI dated 2026-07-28      |
-| Placement                    | `subnet-0ce370d0b178797ab`, `us-east-1a`             | Private subnet; no automatic public IPv4               |
+| EC2 shape                    | `p5.4xlarge`                                         | 16 P vCPUs required; Jakarta quota is 32               |
+| Root volume                  | `150 GiB` `gp3`                                      | Encrypted; ~33.7 GB model manifest leaves POC headroom |
+| Pinned AMI                   | `ami-06bc172b9832559df`                              | Jakarta copy of Ubuntu 22.04 DLAMI dated 2026-07-28    |
+| Placement                    | `subnet-06a995e4116d8061b`, `ap-southeast-3a`        | Private subnet; no automatic public IPv4               |
 | Public IPv4 / SSH            | Disabled                                             | Private subnet and SSM administration only             |
 | Tensor parallel size         | `1`                                                  | One-GPU target                                         |
 | Maximum model length         | `32768`                                              | Lower than the published 262,144-token maximum         |

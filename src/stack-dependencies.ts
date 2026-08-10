@@ -5,6 +5,13 @@ export type GlobalCloudNetworkOutputs = {
   privateSubnetIds: pulumi.Output<string[]>;
 };
 
+type RegionalNetwork = {
+  vpcId: string;
+  privateSubnetIds: string[];
+};
+
+type RegionalNetworks = Record<string, RegionalNetwork>;
+
 export type GlobalCloudIdentityOutputs = {
   pulumiOidcProviderArn: pulumi.Output<string>;
   pulumiOidcAudience: pulumi.Output<string>;
@@ -12,13 +19,26 @@ export type GlobalCloudIdentityOutputs = {
 
 export function getGlobalCloudNetworkOutputs(
   stackRef: string,
+  region: string,
 ): GlobalCloudNetworkOutputs {
   const network = new pulumi.StackReference(stackRef);
+  const regionalNetwork = (
+    network.requireOutput("regionalNetworks") as pulumi.Output<RegionalNetworks>
+  ).apply((regionalNetworks) => {
+    const selectedNetwork = regionalNetworks[region];
+    if (!selectedNetwork) {
+      throw new Error(
+        `Network stack ${stackRef} does not export a network for ${region}.`,
+      );
+    }
+    return selectedNetwork;
+  });
+
   return {
-    vpcId: network.requireOutput("vpcId") as pulumi.Output<string>,
-    privateSubnetIds: network.requireOutput(
-      "privateSubnetIds",
-    ) as pulumi.Output<string[]>,
+    vpcId: regionalNetwork.apply(({ vpcId }) => vpcId),
+    privateSubnetIds: regionalNetwork.apply(
+      ({ privateSubnetIds }) => privateSubnetIds,
+    ),
   };
 }
 

@@ -53,7 +53,7 @@ The sample and verified mirror do not close the remaining roadmap gates. Before
 an authorized apply, obtain or verify:
 
 1. `p5.4xlarge` quota, Availability Zone capacity, and current Global Services
-   account cost evidence in `us-east-1`.
+   account cost evidence in the configured deployment region.
 2. The pinned Deep Learning AMI publisher, driver, CUDA, Docker, and NVIDIA
    Container Toolkit compatibility with the mirrored image.
 3. Registry authentication lifetime. CarbonForge confirmed the source pull token

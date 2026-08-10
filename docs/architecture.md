@@ -54,12 +54,12 @@ token rather than the temporary vendor source credential.
 
 CarbonForge's public AWS Terraform sample confirms `p5.4xlarge` as its minimal
 one-H100 client host, an NVIDIA Deep Learning AMI family, and a 150 GiB encrypted
-root volume. The implementation pins `ami-02c52c305263fdec5` and private subnet
-`subnet-0ce370d0b178797ab` in `us-east-1a`. Current On-Demand pricing is
-`$6.88/hour`, while the account's effective On-Demand G/VT quota is `0`. AWS
-request `06437a82af484fe5b785bdd8fe871dd7UA0EPVGB` asks for 32 vCPUs; at least 16
-must be effective before one `p5.4xlarge` can launch. Approval does not guarantee
-physical H100 capacity in `us-east-1a`.
+root volume. The temporary regional deployment pins Jakarta AMI
+`ami-06bc172b9832559df` and private subnet `subnet-06a995e4116d8061b` in
+`ap-southeast-3a`. The effective Jakarta On-Demand P quota is 32 vCPUs, which is
+sufficient for the 16-vCPU `p5.4xlarge` shape. Quota and instance-type offering
+approval do not guarantee physical H100 capacity at launch time. Jakarta-specific
+price evidence must be refreshed before apply.
 
 The sample is intentionally minimal and public-facing. This architecture does
 not adopt its default VPC, public IPv4, SSH key, CIDR ingress, user-data secrets,

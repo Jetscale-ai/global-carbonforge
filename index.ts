@@ -58,9 +58,12 @@ const runtime = validateRuntimeConfig({
 enforceLiveMutationGuard(project, stack);
 enforceTargetAwsAccount(targetAwsAccountId);
 
-const network = getGlobalCloudNetworkOutputs(cfg.require("networkStackRef"));
-const identity = getGlobalCloudIdentityOutputs(cfg.require("identityStackRef"));
 const region = aws.config.region ?? "us-east-1";
+const network = getGlobalCloudNetworkOutputs(
+  cfg.require("networkStackRef"),
+  region,
+);
+const identity = getGlobalCloudIdentityOutputs(cfg.require("identityStackRef"));
 const subnetId = cfg.require("subnetId");
 const availabilityZone = cfg.require("availabilityZone");
 const selectedSubnet = aws.ec2.getSubnetOutput({ id: subnetId });

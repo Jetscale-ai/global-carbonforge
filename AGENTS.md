@@ -1,6 +1,6 @@
 # Repository Constitution: global-carbonforge
 
-**Status:** Draft (Unratified)  
+**Status:** Ratified
 **Authority:** [Supreme Constitution](https://github.com/Jetscale-AI/Governance/blob/main/AGENTS.md)  
 **Version:** 0.1.0  
 **Risk Level:** High  

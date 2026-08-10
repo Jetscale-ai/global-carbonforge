@@ -2,9 +2,11 @@
 
 ## Account and deployment controls
 
-The sole target is Global Services AWS account `728827482753` in `us-east-1`.
-The Pulumi program checks caller identity against that account. The shell wrapper
-also authenticates through the management account before invoking Pulumi.
+The sole account target is Global Services AWS account `728827482753`; the live
+stack currently selects Jakarta (`ap-southeast-3`) as a temporary capacity
+fallback. The Pulumi program checks caller identity against that account. The
+shell wrapper also authenticates through the management account before invoking
+Pulumi.
 
 Routine updates to `JetScale/global-carbonforge/live` use Pulumi Deployments.
 The wrapper and program block local live mutations unless an explicitly
