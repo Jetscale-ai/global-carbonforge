@@ -1,18 +1,28 @@
 # Deployment runbook
 
-## Preconditions
+## Current deployment
 
-Do not apply until Jakarta's effective On-Demand P quota remains at least 16
-vCPUs, physical `p5.4xlarge` capacity is rechecked, current Jakarta cost is
-explicitly approved, and the live action is authorized. The effective quota was
-verified at 32 vCPUs. Quota approval alone is not apply authorization. The
-reviewed Jakarta migration preview includes regional replacements as well as the
-new instance.
+Pulumi update 16 provisioned the private Jakarta runtime infrastructure on
+2026-08-10. The update created a `p5.4xlarge` after 832 seconds and completed in
+14 minutes 7 seconds. This is placement evidence, not runtime-health evidence.
+Use the verification runbook before routing traffic.
+
+The EC2 resource currently declares `customTimeouts.create: 3m`, but that setting
+did not abort the in-flight provider operation at three minutes. Do not treat it
+as a hard capacity-attempt deadline. Review provider behavior and the observed
+placement duration before changing timeout or retry policy.
+
+## Preconditions for future mutations
+
+Before any replacement, expansion, or redeployment, confirm Jakarta's effective
+Running On-Demand P-instance quota remains 32 vCPUs, recheck `p5.4xlarge`
+offering and physical-capacity risk, record current Jakarta cost, review the
+preview, and obtain explicit live-action authorization.
 
 Verify that:
 
-- the quota request is approved and the effective regional quota, not only the
-  request status, is at least 16 vCPUs;
+- the effective regional P-instance quota, not only a request status, is 32
+  vCPUs so one active 16-vCPU host retains replacement headroom;
 - `p5.4xlarge` remains offered in `ap-southeast-3a`; physical capacity is still an
   apply-time dependency unless a separately approved reservation exists;
 - the target is `JetScale/global-carbonforge/live` in account `728827482753`;
@@ -38,7 +48,7 @@ Verify that:
   with the image's CUDA 13 requirement;
 - the subnet retains active NAT egress for AWS APIs, GHCR, NVIDIA package setup,
   and the public Hugging Face model download; VPC DNS and NACL behavior are
-  rechecked immediately before apply;
+  rechecked immediately before mutation;
 - the runtime security group has no ingress and administration is SSM-only;
 - tracing remains explicitly `off`; `standard` requires an approved sink and
   retention design;
@@ -55,8 +65,8 @@ bash -c 'source scripts/preflight.sh && aws service-quotas get-service-quota --s
 bash -c 'source scripts/preflight.sh && aws ec2 describe-instance-type-offerings --region ap-southeast-3 --location-type availability-zone --filters Name=instance-type,Values=p5.4xlarge Name=location,Values=ap-southeast-3a'
 ```
 
-Confirm the effective quota is at least 16. An offering result validates the
-configuration but cannot prove that AWS has an H100 available at launch time.
+Confirm the effective quota is 32. An offering result validates the configuration
+but cannot prove that AWS has an H100 available at launch time.
 
 ## Preview
 
@@ -72,10 +82,11 @@ pnpm pulumi preview --diff -s JetScale/global-carbonforge/live
 ```
 
 The wrapper authenticates to Global Services. It permits previews but blocks
-local live mutations by default. Review the fresh Jakarta migration preview for
-only the expected create, regional replacements, and IAM policy update. Confirm
-that no existing CarbonForge EC2 instance is present before accepting the
-replacement-bearing plan.
+local live mutations by default. Because an instance now exists, review every
+preview for replacement or deletion of `carbonforge-instance`, secret versions,
+security groups, and regional resources. Treat an instance replacement as a
+capacity-loss and service-interruption risk even when Pulumi proposes
+create-before-delete.
 
 Review the detailed instance properties for:
 
@@ -93,10 +104,8 @@ requires explicit replacement and cost review.
 
 ## Apply
 
-Routine live application occurs through Pulumi Deployments after the reviewed
-change is landed. Because the stack-scoped deployment role is itself owned by
-this stack, its first creation requires a separately approved bootstrap path
-using existing Global Services authority. After that bootstrap:
+The initial break-glass apply created the stack-scoped deployment role. Routine
+live application now belongs in Pulumi Deployments:
 
 1. Record the exported `deploymentRoleArn`.
 2. Configure Pulumi Deployments to assume it with audience `JetScale`.
@@ -113,6 +122,7 @@ not a substitute for normal review, quota, or cost approval.
 
 ## Post-apply handoff
 
-Use the verification runbook to collect health, OpenAI-compatible completion,
-LiteLLM connectivity, private-network, and telemetry evidence. Record failures
-and rollback instructions before expanding traffic.
+The current deployment is at this gate. Use the verification runbook to collect
+health, OpenAI-compatible completion, LiteLLM connectivity, private-network, and
+telemetry evidence. Record failures and rollback instructions before enabling
+traffic.

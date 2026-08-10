@@ -59,9 +59,9 @@ and remain owned by `global-carbonforge`.
 
 ### Downstream outputs
 
-The previewed stack exposes a narrow, non-secret contract suitable for
-`global-inference-litellm` or catalog composition. Resource-dependent values
-remain unknown until apply:
+The applied stack exposes a narrow, non-secret contract suitable for
+`global-inference-litellm` or catalog composition. Resource-dependent values are
+now concrete, but they do not imply runtime health:
 
 | Output            | Purpose                                  |
 | ----------------- | ---------------------------------------- |
@@ -76,13 +76,14 @@ full-trace content.
 
 ## 4. H100 Capacity and Cost Gate
 
-Before applying the concrete instance resource, verify and record:
+Before replacing, expanding, or redeploying the concrete instance resource,
+verify and record:
 
 1. The selected H100 EC2 instance type is available in the configured region
    and Availability Zone and fits the single-H100 requirement.
-2. The Global Services account has sufficient regional On-Demand P vCPU quota. The
-   current request and evidence are tracked in
-   [issue #1](https://github.com/Jetscale-ai/global-carbonforge/issues/1).
+2. The Global Services account retains 32 regional Running On-Demand P-instance
+   vCPUs: 16 for the active host and 16 for replacement headroom. Evidence is
+   tracked in [issue #1](https://github.com/Jetscale-ai/global-carbonforge/issues/1).
 3. At least one existing private subnet maps to an Availability Zone with
    capacity or an approved Capacity Reservation.
 4. Hourly and monthly cost estimates are attached to the issue or pull request.
@@ -122,15 +123,15 @@ values.
 - Agents must not run `pulumi up`, `pulumi destroy`, or AWS mutation commands
   against live resources without explicit human authorization.
 - Routine applies belong in Pulumi Deployments using the stack-scoped OIDC role.
-  The role's first creation requires separately approved existing authority;
-  thereafter, verify a preview while assuming the exported `deploymentRoleArn`.
+  The initial break-glass apply created that role; verify a preview while assuming
+  the exported `deploymentRoleArn` before routine updates.
 - Local live mutation is break-glass only and must be ticketed and auditable.
 - Preserve the AWS account guard and never weaken it to unblock a preview.
 
 ## 7. Post-Deploy Evidence
 
-After a human-authorized apply, collect all of the following without exposing
-secrets or prompt content:
+The Jakarta infrastructure is provisioned. Collect all of the following before
+calling the runtime healthy, without exposing secrets or prompt content:
 
 1. The EC2 instance reaches the running and status-check-passed states.
 2. The supervised CarbonForge service is healthy.

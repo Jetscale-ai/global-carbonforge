@@ -3,10 +3,9 @@
 ## Account and deployment controls
 
 The sole account target is Global Services AWS account `728827482753`; the live
-stack currently selects Jakarta (`ap-southeast-3`) as a temporary capacity
-fallback. The Pulumi program checks caller identity against that account. The
-shell wrapper also authenticates through the management account before invoking
-Pulumi.
+stack is deployed in Jakarta (`ap-southeast-3`). The Pulumi program checks caller
+identity against that account. The shell wrapper also authenticates through the
+management account before invoking Pulumi.
 
 Routine updates to `JetScale/global-carbonforge/live` use Pulumi Deployments.
 The wrapper and program block local live mutations unless an explicitly
@@ -45,8 +44,8 @@ pinned where the source supports it.
 The supplied command transcription was not treated as authoritative. The pinned
 image itself was inspected for its entrypoint, inherited command, CarbonForge
 wrapper help, vLLM option declarations, and parser registries. The generated
-Compose file explicitly overrides the unsafe dry-run Qwen2.5 example. Target-H100
-startup remains a post-apply compatibility check.
+Compose file explicitly overrides the unsafe dry-run Qwen2.5 example. The H100 is
+provisioned, but startup remains an open post-deploy compatibility check.
 
 CarbonForge's public Terraform quickstart is also not a Jetscale security
 baseline. Its user data contains base64-encoded licence and registry token

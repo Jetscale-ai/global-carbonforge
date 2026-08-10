@@ -4,9 +4,9 @@
 
 `global-carbonforge` owns the private H100 compute, inference workload security
 group, runtime bootstrap, health contract, and endpoint outputs for a
-CarbonForge-optimized model runtime. The resources are implemented and previewed
-but have not been applied. The external capacity blocker is tracked in
-[issue #1](https://github.com/Jetscale-ai/global-carbonforge/issues/1).
+CarbonForge-optimized model runtime. Pulumi update 16 provisioned these resources
+in Jakarta on 2026-08-10. Runtime health and downstream reachability remain
+unverified until the post-deploy checks pass.
 
 ## Dependency graph
 
@@ -47,19 +47,19 @@ The program exports a digest-pinned immutable reference; the release tag is
 provenance metadata, not the deployment selector.
 
 The GHCR digest differs from the vendor source-registry digest. Both are retained
-as separate provenance facts. Runtime access will use a least-privilege GHCR pull
+as separate provenance facts. Runtime access uses a least-privilege GHCR pull
 token rather than the temporary vendor source credential.
 
 ## Vendor-informed host baseline
 
 CarbonForge's public AWS Terraform sample confirms `p5.4xlarge` as its minimal
 one-H100 client host, an NVIDIA Deep Learning AMI family, and a 150 GiB encrypted
-root volume. The temporary regional deployment pins Jakarta AMI
+root volume. The applied regional deployment pins Jakarta AMI
 `ami-06bc172b9832559df` and private subnet `subnet-06a995e4116d8061b` in
-`ap-southeast-3a`. The effective Jakarta On-Demand P quota is 32 vCPUs, which is
-sufficient for the 16-vCPU `p5.4xlarge` shape. Quota and instance-type offering
-approval do not guarantee physical H100 capacity at launch time. Jakarta-specific
-price evidence must be refreshed before apply.
+`ap-southeast-3a`. The effective Jakarta Running On-Demand P-instance quota is 32
+vCPUs, and the 16-vCPU `p5.4xlarge` was placed successfully. That launch does not
+guarantee future replacement capacity. Jakarta-specific cost evidence remains
+required for lifecycle decisions.
 
 The sample is intentionally minimal and public-facing. This architecture does
 not adopt its default VPC, public IPv4, SSH key, CIDR ingress, user-data secrets,
@@ -77,10 +77,11 @@ The stack exports the narrow non-secret contract LiteLLM needs:
 - `securityGroupId`: workload security group for consumer ingress rules; and
 - `instanceId`: operational identity for SSM and alarms.
 
-Before apply, Pulumi reports endpoint/resource outputs as unknown and
+The applied stack reports concrete endpoint and resource outputs while retaining
 `deploymentMaturity: planned-runtime`. The downstream status is
-`provisioned-after-apply`; consumers must not treat the contract as reachable
-until the stack is applied and runtime verification succeeds.
+`provisioned-after-apply`, which confirms infrastructure provisioning rather than
+runtime health. Consumers must not treat the contract as reachable until runtime
+verification succeeds.
 
 ## Deployment identity
 
@@ -91,9 +92,7 @@ own or change the central OIDC anchor. IAM and Secrets Manager permissions are
 name/account scoped; EC2 launch and describe permissions retain AWS-required
 wildcard resources.
 
-There is an intentional first-deployment bootstrap boundary: the role is managed
-by the stack that it will later deploy, so it cannot authorize its own initial
-creation. Separately approved existing Global Services authority must create the
-role once. Pulumi Deployments must then assume the exported `deploymentRoleArn`,
-and a preview under that role must verify that its policy covers the complete
-program before routine applies use it.
+The initial break-glass apply crossed the first-deployment bootstrap boundary and
+created the role that the stack itself manages. Pulumi Deployments must now assume
+the exported `deploymentRoleArn`, and a preview under that role must verify that
+its policy covers the complete program before routine applies use it.

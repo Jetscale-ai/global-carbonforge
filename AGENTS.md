@@ -6,7 +6,7 @@
 **Risk Level:** High  
 **Owner:** JetScale Global Services Platform  
 **Deploy Target:** Global Services AWS account (`728827482753`), Pulumi stack
-`JetScale/global-carbonforge/live`, primary region `us-east-1`  
+`JetScale/global-carbonforge/live`, deployed region `ap-southeast-3`
 **Management Source:** `../governance/`
 
 ## 0. Situational Awareness

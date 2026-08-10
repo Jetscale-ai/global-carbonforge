@@ -7,23 +7,24 @@ approval.
 
 ## Current delivery state
 
-The Pulumi implementation, runtime invocation, private-network contract, secret
-flow, and post-deploy smoke tooling are complete and preview cleanly. The stack
-is not deployed. The critical path is:
+Pulumi update 16 provisioned the private `p5.4xlarge` and supporting resources in
+`ap-southeast-3a` on 2026-08-10. The implementation, private-network contract,
+secret flow, runtime invocation, and smoke tooling are complete. The critical
+path is now:
 
-1. AWS quota request
-   [`06437a82af484fe5b785bdd8fe871dd7UA0EPVGB`](https://github.com/Jetscale-ai/global-carbonforge/issues/1)
-   reaches an approved state and the effective quota is verified.
-2. `p5.4xlarge` capacity is rechecked in `us-east-1a`.
-3. Changes are reviewed and landed; a fresh preview is run from the exact commit.
-4. Existing authority bootstraps the stack-owned Pulumi Deployments role.
-5. Cost and live apply receive explicit human approval.
-6. Target-host, OpenAI-compatible, and LiteLLM evidence close the remaining
-   runtime gates.
+1. Verify SSM, bootstrap, GPU, storage, systemd, and container health on the
+   provisioned host.
+2. Run direct model-discovery and OpenAI-compatible completion checks over the
+   authorized private network path.
+3. Configure LiteLLM's source-security-group ingress and validate end-to-end
+   routing.
+4. Configure routine Pulumi Deployments use of the stack-owned deployment role.
+5. Record Jakarta-specific cost and lifecycle evidence before continued operation
+   or replacement.
 
-Quota approval removes only one blocker. It does not prove physical capacity,
-authorize spend, validate the target host, or make the downstream endpoint
-reachable.
+The successful placement proves only that capacity was available for that launch.
+It does not prove runtime health, future replacement capacity, downstream
+reachability, performance, or benchmark claims.
 
 ## Principles
 
@@ -55,17 +56,18 @@ independently inspected GHCR digest.
 
 ## Phase 1 — Capacity, cost, and vendor validation
 
-**Status:** Blocked on AWS quota request
-[`06437a82af484fe5b785bdd8fe871dd7UA0EPVGB`](https://github.com/Jetscale-ai/global-carbonforge/issues/1).
-Image provenance, mirroring/licence authorization, digest pinning, concrete
-AMI/subnet placement, current pricing, and runtime launch-path validation are
-complete. The effective On-Demand G/VT quota remains `0`; physical capacity and
-post-start compatibility evidence remain open.
+**Status:** Capacity and P-instance quota gate passed for the initial Jakarta
+launch; lifecycle cost and replacement-capacity evidence remain open.
 
-- Confirmed `p5.4xlarge` is offered in the selected `us-east-1a` private subnet;
-  obtain at least 16 On-Demand G/VT vCPUs and re-check physical capacity.
-- Obtain explicit apply approval using the recorded `$6.88/hour` On-Demand rate
-  (about `$5,022.40` for 730 hours before EBS, NAT, and transfer).
+Image provenance, mirroring/licence authorization, digest pinning, concrete
+AMI/subnet placement, and runtime launch-path validation are complete. Jakarta's
+effective Running On-Demand P-instance quota is 32 vCPUs, and one 16-vCPU
+`p5.4xlarge` was placed successfully in `ap-southeast-3a`.
+
+- Preserve at least 32 Running On-Demand P-instance vCPUs for active capacity and
+  replacement headroom; recheck physical capacity before any replacement.
+- Record current Jakarta On-Demand cost before continued-operation, replacement,
+  or expansion decisions.
 - Preserve the confirmed CarbonForge authorization to mirror and operate the
   proprietary evaluation image from Jetscale's private GHCR package for the PoC.
 - Preserve the verified source and GHCR image provenance evidence.
@@ -77,8 +79,8 @@ post-start compatibility evidence remain open.
   current AWS capacity and compatibility. A pinned-revision Hub dry run measured
   roughly 33.7 GB of model files, leaving practical PoC headroom on the 150 GiB
   root volume alongside the roughly 19 GB image; verify free space after boot.
-- Pinned `ami-02c52c305263fdec5`, the 2026-07-28 Ubuntu 22.04 NVIDIA-driver Deep
-  Learning Base OSS AMI.
+- Pinned Jakarta AMI `ami-06bc172b9832559df`, the regional copy of the
+  2026-07-28 Ubuntu 22.04 NVIDIA-driver Deep Learning Base OSS AMI.
 - Define model provenance and the relationship to `global-inference-models`.
 
 **Exit gate:** human-approved cost/capacity evidence and a reviewed technical
@@ -86,7 +88,8 @@ runbook. No rolling container tags are acceptable.
 
 ## Phase 2 — Private H100 compute
 
-**Status:** Implemented and previewed; not applied.
+**Status:** Applied in Jakarta by Pulumi update 16; infrastructure verification
+is in progress.
 
 - Added a private H100 instance in the existing VPC and selected private subnet.
 - Added a least-privilege instance profile, encrypted storage, IMDSv2, detailed
@@ -94,18 +97,18 @@ runbook. No rolling container tags are acceptable.
 - Added a dedicated workload security group with no ingress. LiteLLM will own a
   standalone TCP `8000` rule sourced from its ECS task security group.
 - Added a stack-scoped Pulumi Deployments role anchored in the upstream OIDC
-  provider. Its first creation still requires separately approved bootstrap
-  authority because the role cannot assume itself before it exists.
+  provider. The initial break-glass apply created the role; routine updates must
+  configure and verify Pulumi Deployments assumption of that role.
 
-**Exit gate:** the non-destructive preview is clean for Global Services with 16
-creates and no update/delete operations. Public IPv4 and SSH are absent. Before
-apply, land the reviewed change, rerun `--diff` from that commit, bootstrap and
-test the deployment role, verify quota/capacity, and obtain explicit cost and
-live-apply authorization.
+**Exit gate:** confirm the applied instance has no public IPv4 or SSH ingress,
+passes EC2 and SSM checks, and is manageable through the intended deployment
+identity. Future replacement-bearing previews require explicit capacity, cost,
+and live-mutation review.
 
 ## Phase 3 — Secret-safe runtime bootstrap
 
-**Status:** Implemented and previewed; boot evidence requires an apply.
+**Status:** Applied; bootstrap completion, secret-safety, and private health
+evidence remain open.
 
 - Store the GHCR pull token and the reissued licence as
   encrypted Pulumi stack secrets; no Hugging Face token is required for the
@@ -122,8 +125,8 @@ leakage, and successful private health check.
 
 ## Phase 4 — Service health and observability
 
-**Status:** Service supervision and smoke-test tooling are implemented. Runtime
-health and telemetry evidence require an apply.
+**Status:** Service supervision and smoke-test tooling are implemented and the
+host is provisioned. Runtime health and telemetry evidence remain open.
 
 - Add a service manager and resilient startup behavior.
 - Add health probes and alertable service/runtime signals.
@@ -147,7 +150,7 @@ end-to-end evidence remain open.
 - Configure LiteLLM as the downstream caller without introducing a reverse
   StackReference.
 - Validate OpenAI-compatible completions and LiteLLM-to-CarbonForge network
-  connectivity after a human-authorized apply.
+  connectivity against the provisioned private endpoint.
 
 **Exit gate:** authenticated end-to-end request evidence, least-privilege
 network evidence, and rollback instructions. Specifically, LiteLLM must consume

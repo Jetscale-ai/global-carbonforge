@@ -6,7 +6,7 @@
 | ---------------------------- | ---------------------------------------------------- | ------------------------------------------------------ |
 | Model                        | `Qwen/Qwen3.5-27B-FP8`                               | Dense 27B FP8 model from supplied source material      |
 | Private container mirror     | `ghcr.io/jetscale-ai/carbonforge-eval:v0.1.8-v0.1.3` | Mirrored privately; deployment resolves by digest      |
-| GPU                          | One H100                                             | Capacity and instance selection still require approval |
+| GPU                          | One H100                                             | Provisioned; runtime use still requires verification   |
 | EC2 shape                    | `p5.4xlarge`                                         | 16 P vCPUs required; Jakarta quota is 32               |
 | Root volume                  | `150 GiB` `gp3`                                      | Encrypted; ~33.7 GB model manifest leaves POC headroom |
 | Pinned AMI                   | `ami-06bc172b9832559df`                              | Jakarta copy of Ubuntu 22.04 DLAMI dated 2026-07-28    |
@@ -44,7 +44,8 @@ example and found no consumer for the previously assumed `CF_SCHEDULER` or
 validated CarbonForge wrapper and vLLM settings, including the pinned model
 revision, context, concurrency, memory fraction, parsers, and tracing `off`.
 This proves interface presence, not successful H100 model startup or performance.
-See the [runtime invocation](runtime-invocation.md).
+The host is now provisioned, but target-host verification remains open. See the
+[runtime invocation](runtime-invocation.md).
 
 ## Secrets and persistent data
 
@@ -60,5 +61,5 @@ The configured `32768` context is now passed as vLLM `--max-model-len`; the
 pinned vLLM source declares that option. The screenshot's `262144` dry-run value
 is not used. A read-only Hub dry run measured roughly 33.7 GB for the pinned
 model revision. Verify model load, GPU memory behavior, temporary download space,
-and remaining disk capacity on the target H100 before treating the sizing as
+and remaining disk capacity on the provisioned H100 before treating the sizing as
 proven.

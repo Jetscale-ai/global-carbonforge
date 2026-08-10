@@ -110,8 +110,8 @@ evidence rather than being substituted for the verified GHCR manifest digest.
 
 The command shape and option registrations are validated from the pinned image,
 but a GPU-free workstation cannot initialize vLLM's complete CLI parser because
-vLLM requires a detected device while constructing defaults. After an authorized
-apply, verify:
+vLLM requires a detected device while constructing defaults. The Jakarta host is
+provisioned; verify:
 
 1. the pinned AMI driver satisfies the image's CUDA 13 compatibility contract;
 2. the H100 loads the pinned model at the configured context and memory fraction;
@@ -122,7 +122,7 @@ apply, verify:
 
 ## Post-start smoke test
 
-After a human-authorized deployment, use `pnpm smoke:runtime` from an authorized
-private-network client. It validates `/v1/models` and `/v1/chat/completions`
-using a fixed non-sensitive prompt and does not print generated response content.
-See the [verification runbook](runbooks/verification.md).
+Use `pnpm smoke:runtime` from an authorized private-network client against the
+provisioned endpoint. It validates `/v1/models` and `/v1/chat/completions` using a
+fixed non-sensitive prompt and does not print generated response content. See the
+[verification runbook](runbooks/verification.md).

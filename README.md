@@ -7,25 +7,24 @@ with an OpenAI-compatible endpoint consumed downstream by
 `global-inference-litellm`.
 
 > [!WARNING]
-> The private H100 runtime is implemented and has a clean Pulumi preview, but it
-> is **not deployed**. The Global Services account currently has a zero On-Demand
-> G/VT vCPU quota. A request for 32 vCPUs is tracked in
-> [issue #1](https://github.com/Jetscale-ai/global-carbonforge/issues/1), but
-> approval does not authorize an apply or guarantee H100 capacity. Do not treat
-> preview outputs as a live endpoint or as a benchmark claim.
+> Pulumi update 16 provisioned the private H100 infrastructure in Jakarta on
+> 2026-08-10. Infrastructure creation does not prove that bootstrap completed or
+> that the CarbonForge endpoint is healthy. Do not route traffic or make benchmark
+> claims until the verification runbook records SSM, model, completion, and
+> LiteLLM evidence.
 
 ## Status
 
-| Area                   | Current state                                                                          |
-| ---------------------- | -------------------------------------------------------------------------------------- |
-| Governance             | Managed through `../governance` with baseline, Pulumi-infra, and node-service bundles  |
-| Infrastructure         | Private EC2, IAM, Secrets Manager, security group, and deployment role preview cleanly |
-| Container supply chain | Private GHCR mirror independently inspected and pinned by digest                       |
-| Runtime                | Explicit inspected-image command, pinned model prefetch, and systemd supervision       |
-| Tracing                | Disabled pending authoritative destination semantics; `full` remains prohibited        |
-| Capacity               | Blocked: quota `0`; 32-vCPU request open in issue `#1`; one `p5.4xlarge` needs 16      |
-| Deployment             | Awaiting quota, capacity recheck, reviewed commit, role bootstrap, and apply approval  |
-| Downstream integration | Exports the private endpoint contract; LiteLLM will own its source-SG ingress rule     |
+| Area                   | Current state                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| Governance             | Ratified and managed through `../governance`                                                 |
+| Infrastructure         | Update 16 provisioned a private Jakarta `p5.4xlarge` and supporting resources                |
+| Container supply chain | Private GHCR mirror independently inspected and pinned by digest                             |
+| Runtime                | Bootstrap and supervision are implemented; target-host health evidence remains open          |
+| Tracing                | Disabled pending authoritative destination semantics; `full` remains prohibited              |
+| Capacity               | Jakarta P-instance quota is 32 vCPUs; the running shape consumes 16                          |
+| Deployment             | Infrastructure provisioned; runtime verification and routine deployment handoff remain open  |
+| Downstream integration | Private endpoint exported; LiteLLM ingress and routing remain open                           |
 
 ## Architecture and dependencies
 
@@ -59,7 +58,7 @@ this initial deployment.
 | Immutable container reference | `ghcr.io/jetscale-ai/carbonforge-eval@sha256:a3999f60989e47d9059cfedb0999a2342adb41cad1f20999938ac3a8f4f0d5de` |
 | Hardware target               | One NVIDIA H100                                                                                                |
 | EC2 shape                     | `p5.4xlarge`                                                                                                   |
-| Cost evidence                 | Must be refreshed for Jakarta before apply; existing Virginia pricing is not regional evidence                 |
+| Cost evidence                 | Jakarta-specific runtime cost must be recorded before replacement or continued-operation decisions             |
 | Encrypted root volume         | `150 GiB` `gp3`                                                                                                |
 | Pinned AMI                    | `ami-06bc172b9832559df` (`Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04) 20260728`)               |
 | Private placement             | `subnet-06a995e4116d8061b`, `ap-southeast-3a`                                                                  |
@@ -128,8 +127,8 @@ Preview the intended stack through the authenticated wrapper:
 pnpm pulumi preview -s JetScale/global-carbonforge/live
 ```
 
-After a human-authorized deployment, run the bounded private-endpoint smoke test
-from an authorized network client:
+Run the bounded private-endpoint smoke test against the provisioned runtime from
+an authorized network client:
 
 ```bash
 CARBONFORGE_BASE_URL=http://PRIVATE_ENDPOINT:8000/v1 pnpm smoke:runtime
@@ -143,27 +142,30 @@ local `up`, `destroy`, `refresh`, and `import` against `live` unless a human has
 explicitly authorized a ticketed `DR014_BREAKGLASS=1` path. Routine live updates
 must use Pulumi Deployments.
 
-## Deployment readiness
+## Deployment status and next gates
 
-The implementation is ready for a governed apply only after all of these gates
-are satisfied:
+Pulumi update 16 completed in Jakarta on 2026-08-10. EC2 placement took about 14
+minutes, including 832 seconds to create the `p5.4xlarge`. The stack now exports a
+private instance ID, private IP, security group ID, `/v1` base URL, and
+`/v1/models` health URL.
 
-1. The effective Jakarta On-Demand P quota remains at least 16 vCPUs; 32 vCPUs
-   was verified before this migration.
-2. `p5.4xlarge` offering and physical capacity are rechecked in
-   `ap-southeast-3a`.
-3. The GHCR pull token and CarbonForge licence are confirmed current without
-   printing their values.
-4. The reviewed changes are landed and a fresh `--diff` preview from that exact
-   commit contains only the intended Jakarta creates, regional replacements, and
-   IAM policy update.
-5. A human explicitly approves the recorded cost and live apply.
-6. Existing authority bootstraps this stack's Pulumi Deployments role; Pulumi
-   Deployments is then configured to assume the exported `deploymentRoleArn`.
-7. A preview under that role confirms its least-privilege policy is sufficient.
+The apply closes infrastructure placement only. Before routing traffic or
+calling the service ready:
 
-Quota approval alone is not a deployment signal. See the
-[deployment runbook](docs/runbooks/deployment.md) for the apply and evidence
+1. Verify SSM reachability, EC2 status checks, bootstrap completion, GPU driver,
+   disk headroom, systemd service, and container state.
+2. Run direct `/v1/models` and bounded chat-completion smoke checks from an
+   authorized private client.
+3. Configure and verify LiteLLM's source-security-group ingress and routing.
+4. Confirm request tracing remains off and logs contain no secret or content
+   material.
+5. Configure routine Pulumi Deployments use of the exported deployment role and
+   reserve local mutation for explicitly authorized break-glass operations.
+6. Record Jakarta-specific cost evidence before any replacement, expansion, or
+   continued-operation decision.
+
+See the [deployment runbook](docs/runbooks/deployment.md) and
+[verification runbook](docs/runbooks/verification.md) for the operational
 sequence.
 
 ## Configuration and outputs
@@ -192,22 +194,23 @@ pnpm secrets:configure
 The helper delegates hidden input directly to `pulumi config set --secret`.
 Do not reuse values previously shared through unapproved channels.
 
-The preview exports `deploymentMaturity: planned-runtime` and a downstream
-contract containing the model and revision plus apply-time private URL, private
-IP, security group ID, and instance ID outputs. The status
-`provisioned-after-apply` is explicit: these values do not exist until an
-authorized apply succeeds. LiteLLM must reference this stack and create a
-standalone ingress rule on the exported CarbonForge security group, sourced from
-its own ECS task security group. CarbonForge does not reference LiteLLM.
+The applied stack exports `deploymentMaturity: planned-runtime` and a downstream
+contract containing the model and revision plus concrete private URL, private IP,
+security group ID, and instance ID outputs. The status
+`provisioned-after-apply` means infrastructure exists; it is not a health signal.
+LiteLLM must reference this stack and create a standalone ingress rule on the
+exported CarbonForge security group, sourced from its own ECS task security
+group. CarbonForge does not reference LiteLLM.
 
 ## Security and operational boundaries
 
-- The endpoint will be private; no public IPv4 address or public port `8000`.
+- The provisioned endpoint is private, with no public IPv4 address or public port
+  `8000`.
 - The CarbonForge security group starts with no ingress. LiteLLM will add TCP
   `8000` ingress sourced only from its ECS task security group.
-- Administration will use AWS Systems Manager Session Manager, not SSH ingress.
-- Secrets will be materialized from an approved secret store only at runtime
-  with restrictive permissions.
+- Administration uses AWS Systems Manager Session Manager, not SSH ingress.
+- Bootstrap materializes secrets from AWS Secrets Manager at runtime with
+  restrictive permissions.
 - Deployment uses the private GHCR mirror by its independently verified digest,
   not by tag.
 - CarbonForge authorization to mirror and operate the proprietary evaluation
@@ -237,11 +240,9 @@ See [`docs/security.md`](docs/security.md),
 This repository does not yet prove energy, throughput, latency, quality, cost,
 or availability claims. It also does not provision a capacity reservation,
 Savings Plan, public service, or production-ready multi-node inference fleet.
-Before any apply, AWS must approve at least 16 On-Demand G/VT vCPUs, physical
-capacity must be rechecked, the stack-scoped deployment identity must be
-bootstrapped, and a human must explicitly authorize the cost and live action
-through the governed deployment path. Those decisions require explicit evidence
-and review at the roadmap gates.
+The successful initial placement does not guarantee replacement capacity. Future
+mutations must recheck regional P-instance quota and physical capacity, preserve
+the governed deployment path, and receive explicit cost and live-action approval.
 
 ## License
 

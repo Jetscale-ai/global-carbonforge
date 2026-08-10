@@ -1,8 +1,8 @@
 # Verification runbook
 
-Run these checks only after a human-authorized deployment. Do not place tokens,
-licence values, prompts containing sensitive data, or generated user content in
-verification logs or tickets.
+The Jakarta infrastructure is provisioned and ready for these checks. Do not
+place tokens, licence values, prompts containing sensitive data, or generated
+user content in verification logs or tickets.
 
 ## Infrastructure checks
 
