@@ -12,6 +12,13 @@ did not abort the in-flight provider operation at three minutes. Do not treat it
 as a hard capacity-attempt deadline. Review provider behavior and the observed
 placement duration before changing timeout or retry policy.
 
+The initial host's cloud-init failed before secret retrieval because the pinned
+DLAMI already provides Docker CE, Compose, and `containerd.io`, while bootstrap
+also requested Ubuntu's conflicting `docker.io` package. Bootstrap now installs
+only general utilities and verifies the AMI-provided Docker and Compose binaries.
+Because `userDataReplaceOnChange` is enabled, applying this correction proposes
+an instance replacement; review H100 capacity and interruption risk before apply.
+
 ## Preconditions for future mutations
 
 Before any replacement, expansion, or redeployment, confirm Jakarta's effective

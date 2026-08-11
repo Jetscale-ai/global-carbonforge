@@ -15,16 +15,16 @@ with an OpenAI-compatible endpoint consumed downstream by
 
 ## Status
 
-| Area                   | Current state                                                                                |
-| ---------------------- | -------------------------------------------------------------------------------------------- |
-| Governance             | Ratified and managed through `../governance`                                                 |
-| Infrastructure         | Update 16 provisioned a private Jakarta `p5.4xlarge` and supporting resources                |
-| Container supply chain | Private GHCR mirror independently inspected and pinned by digest                             |
-| Runtime                | Bootstrap and supervision are implemented; target-host health evidence remains open          |
-| Tracing                | Disabled pending authoritative destination semantics; `full` remains prohibited              |
-| Capacity               | Jakarta P-instance quota is 32 vCPUs; the running shape consumes 16                          |
-| Deployment             | Infrastructure provisioned; runtime verification and routine deployment handoff remain open  |
-| Downstream integration | Private endpoint exported; LiteLLM ingress and routing remain open                           |
+| Area                   | Current state                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------- |
+| Governance             | Ratified and managed through `../governance`                                                |
+| Infrastructure         | Update 16 provisioned a private Jakarta `p5.4xlarge` and supporting resources               |
+| Container supply chain | Private GHCR mirror independently inspected and pinned by digest                            |
+| Runtime                | Bootstrap and supervision are implemented; target-host health evidence remains open         |
+| Tracing                | Disabled pending authoritative destination semantics; `full` remains prohibited             |
+| Capacity               | Jakarta P-instance quota is 32 vCPUs; the running shape consumes 16                         |
+| Deployment             | Infrastructure provisioned; runtime verification and routine deployment handoff remain open |
+| Downstream integration | Private endpoint exported; LiteLLM ingress and routing remain open                          |
 
 ## Architecture and dependencies
 

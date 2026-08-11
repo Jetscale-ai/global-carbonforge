@@ -56,7 +56,16 @@ export AWS_REGION=${values.region}
 export AWS_DEFAULT_REGION=${values.region}
 
 apt-get update
-apt-get install -y awscli ca-certificates curl docker.io docker-compose-v2 gnupg jq
+apt-get install -y awscli ca-certificates curl gnupg jq
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "ERROR: The pinned NVIDIA DLAMI must provide Docker CE." >&2
+  exit 1
+fi
+if ! docker compose version >/dev/null 2>&1; then
+  echo "ERROR: The pinned NVIDIA DLAMI must provide the Docker Compose plugin." >&2
+  exit 1
+fi
 systemctl enable --now docker
 
 if ! dpkg -s nvidia-container-toolkit >/dev/null 2>&1; then

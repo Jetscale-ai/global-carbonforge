@@ -71,6 +71,18 @@ test("overrides the vendor default with the validated runtime command", () => {
   assert.doesNotMatch(script, /Qwen2\.5|CF_VLLM_MODEL|CF_SCHEDULER/);
 });
 
+test("requires the pinned DLAMI Docker stack without conflicting packages", () => {
+  const script = renderBootstrapScript(config);
+
+  assert.match(script, /command -v docker/);
+  assert.match(script, /docker compose version/);
+  assert.match(script, /systemctl enable --now docker/);
+  assert.doesNotMatch(
+    script,
+    /apt-get install[^\n]*(docker\.io|docker-compose-v2)/,
+  );
+});
+
 test("uses a temporary Docker config and removes it", () => {
   const script = renderBootstrapScript(config);
 
