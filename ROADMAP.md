@@ -8,23 +8,25 @@ approval.
 ## Current delivery state
 
 Pulumi update 16 provisioned the private `p5.4xlarge` and supporting resources in
-`ap-southeast-3a` on 2026-08-10. The implementation, private-network contract,
-secret flow, runtime invocation, and smoke tooling are complete. The critical
-path is now:
+`ap-southeast-3a` on 2026-08-10. Updates 17 and 18 found no replacement capacity,
+so the allocated H100 was retained. An `INC-002` in-place SSM recovery corrected
+the Docker bootstrap conflict and offline model-cache path. On 2026-08-11, direct
+model discovery and an 8-token OpenAI-compatible completion both returned HTTP
+200 without a container restart or OOM.
 
-1. Verify SSM, bootstrap, GPU, storage, systemd, and container health on the
-   provisioned host.
-2. Run direct model-discovery and OpenAI-compatible completion checks over the
-   authorized private network path.
-3. Configure LiteLLM's source-security-group ingress and validate end-to-end
+The critical path is now:
+
+1. Complete storage, driver/CUDA, and telemetry evidence for the recovered host.
+2. Configure LiteLLM's source-security-group ingress and validate end-to-end
    routing.
-4. Configure routine Pulumi Deployments use of the stack-owned deployment role.
+3. Configure routine Pulumi Deployments use of the stack-owned deployment role.
+4. Reconcile corrected user data only after replacement capacity is demonstrated
+   and replacement is explicitly authorized.
 5. Record Jakarta-specific cost and lifecycle evidence before continued operation
    or replacement.
 
-The successful placement proves only that capacity was available for that launch.
-It does not prove runtime health, future replacement capacity, downstream
-reachability, performance, or benchmark claims.
+The direct check proves bounded token serving, not future replacement capacity,
+downstream reachability, performance, availability, or benchmark claims.
 
 ## Principles
 

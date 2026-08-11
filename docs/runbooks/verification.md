@@ -1,8 +1,10 @@
 # Verification runbook
 
-The Jakarta infrastructure is provisioned and ready for these checks. Do not
-place tokens, licence values, prompts containing sensitive data, or generated
-user content in verification logs or tickets.
+The Jakarta infrastructure is provisioned, and direct model discovery and token
+generation were verified on 2026-08-11. Storage, driver/CUDA, telemetry, and
+LiteLLM handoff evidence remain open. Do not place credentials, licence values,
+prompts containing sensitive data, or generated user content in verification
+logs or tickets.
 
 ## Infrastructure checks
 
@@ -27,7 +29,26 @@ user content in verification logs or tickets.
 
 ## Runtime checks
 
-Run the automated smoke test from an authorized private-network client:
+Recovery verification through SSM recorded the following sanitized result:
+
+```text
+models_http=200
+completion_http=200
+completion_tokens=8
+finish_reason=length
+restart_count=0
+oom_killed=false
+gpu_used_mib=55090
+```
+
+This proves direct model discovery and bounded token generation on the allocated
+H100. It does not prove throughput, latency, availability, or LiteLLM
+connectivity. The first request during model initialization reset its connection;
+the container stayed running without an OOM or restart, and the subsequent
+bounded request succeeded on its first attempt.
+
+For repeat verification, run the automated smoke test from an authorized
+private-network client:
 
 ```bash
 CARBONFORGE_BASE_URL=http://PRIVATE_ENDPOINT:8000/v1 pnpm smoke:runtime
@@ -73,6 +94,7 @@ an authoritative destination contract and approved retention design exist.
 Capture resource identifiers, security-group evidence, SSM status, driver/CUDA
 versions, disk headroom, service and container status, effective process command,
 health status, the sanitized `pnpm smoke:runtime` result, LiteLLM connectivity
-result, and trace inspection results. Do not claim throughput, energy, quality,
-or latency improvements until an approved benchmark method produces comparable
-data.
+result, and trace inspection results. The direct SSM evidence above may satisfy
+model-discovery and completion checks but not the remaining evidence categories.
+Do not claim throughput, energy, quality, or latency improvements until an
+approved benchmark method produces comparable data.

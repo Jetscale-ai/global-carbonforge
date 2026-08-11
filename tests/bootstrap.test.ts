@@ -48,6 +48,7 @@ test("prefetches the pinned model revision and starts offline", () => {
   assert.match(script, /download 'Qwen\/Qwen3\.5-27B-FP8'/);
   assert.match(script, new RegExp(`--revision '${config.modelRevision}'`));
   assert.match(script, /--cache-dir \/root\/\.cache\/huggingface/);
+  assert.match(script, /HUGGINGFACE_HUB_CACHE: "\/root\/\.cache\/huggingface"/);
   assert.match(script, /HF_HUB_OFFLINE: "1"/);
   assert.doesNotMatch(script, /snapshot_download|--entrypoint python/);
 });

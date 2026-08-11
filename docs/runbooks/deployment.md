@@ -7,17 +7,35 @@ Pulumi update 16 provisioned the private Jakarta runtime infrastructure on
 14 minutes 7 seconds. This is placement evidence, not runtime-health evidence.
 Use the verification runbook before routing traffic.
 
-The EC2 resource currently declares `customTimeouts.create: 3m`, but that setting
-did not abort the in-flight provider operation at three minutes. Do not treat it
-as a hard capacity-attempt deadline. Review provider behavior and the observed
-placement duration before changing timeout or retry policy.
+Pulumi update 17 attempted a create-before-delete replacement for the bootstrap
+correction. The existing instance remained running, but the replacement failed
+with `InsufficientInstanceCapacity` after the AWS provider made 25 attempts over
+about 50 minutes. Update 18 used the corrected retry bound and failed for the same
+capacity reason in 8 seconds. Jakarta currently offers `p5.4xlarge` only in
+`ap-southeast-3a`, so there is no alternate regional AZ for this shape.
+
+The stack now sets `aws:maxRetries: "1"`. A value of `0` was treated as unset and
+fell back to the provider default of 25 attempts. The ineffective
+`customTimeouts.create: 3m` option was removed because it did not interrupt the
+provider's internal `RunInstances` retry loop. A failed capacity probe should
+now return quickly; it does not make physical H100 capacity available.
 
 The initial host's cloud-init failed before secret retrieval because the pinned
 DLAMI already provides Docker CE, Compose, and `containerd.io`, while bootstrap
 also requested Ubuntu's conflicting `docker.io` package. Bootstrap now installs
 only general utilities and verifies the AMI-provided Docker and Compose binaries.
 Because `userDataReplaceOnChange` is enabled, applying this correction proposes
-an instance replacement; review H100 capacity and interruption risk before apply.
+an instance replacement. Pulumi uses create-before-delete, preserving the running
+host when replacement capacity is unavailable. Under `INC-002`, the stored
+cloud-init script was corrected and rerun in place through SSM so the allocated
+H100 could be retained. Runtime startup then exposed a second issue: prefetch used
+`/root/.cache/huggingface`, while offline vLLM defaulted to its `hub` subdirectory.
+The Compose environment now sets `HUGGINGFACE_HUB_CACHE` to the prefetch path.
+
+This recovery made the existing service operational but did not change the EC2
+resource's recorded user data. Pulumi therefore still proposes replacement to
+reconcile state. Do not apply or target-delete the instance until replacement
+capacity is demonstrated and the replacement is explicitly authorized.
 
 ## Preconditions for future mutations
 
@@ -30,7 +48,8 @@ Verify that:
 
 - the effective regional P-instance quota, not only a request status, is 32
   vCPUs so one active 16-vCPU host retains replacement headroom;
-- `p5.4xlarge` remains offered in `ap-southeast-3a`; physical capacity is still an
+- `p5.4xlarge` remains offered in `ap-southeast-3a`; it is currently the only
+  Jakarta AZ advertising this shape, and physical capacity is still an
   apply-time dependency unless a separately approved reservation exists;
 - the target is `JetScale/global-carbonforge/live` in account `728827482753`;
 - a least-privilege `ghcrPullToken` and the reissued CarbonForge licence have
@@ -64,12 +83,12 @@ Verify that:
 
 ## Quota and capacity recheck
 
-Query the effective quota and current instance-type offering through the
-authenticated preflight environment:
+Query the effective quota and current instance-type offering through the shared
+read-only IAM Identity Center preflight client:
 
 ```bash
-bash -c 'source scripts/preflight.sh && aws service-quotas get-service-quota --service-code ec2 --quota-code L-417A185B --region ap-southeast-3'
-bash -c 'source scripts/preflight.sh && aws ec2 describe-instance-type-offerings --region ap-southeast-3 --location-type availability-zone --filters Name=instance-type,Values=p5.4xlarge Name=location,Values=ap-southeast-3a'
+pnpm --dir ../security-governance jetscale-preflight -- exec --provider aws --account global-services --access readonly -- aws service-quotas get-service-quota --service-code ec2 --quota-code L-417A185B --region ap-southeast-3
+pnpm --dir ../security-governance jetscale-preflight -- exec --provider aws --account global-services --access readonly -- aws ec2 describe-instance-type-offerings --region ap-southeast-3 --location-type availability-zone --filters Name=instance-type,Values=p5.4xlarge Name=location,Values=ap-southeast-3a
 ```
 
 Confirm the effective quota is 32. An offering result validates the configuration
@@ -88,8 +107,13 @@ pnpm format:check
 pnpm pulumi preview --diff -s JetScale/global-carbonforge/live
 ```
 
-The wrapper authenticates to Global Services. It permits previews but blocks
-local live mutations by default. Because an instance now exists, review every
+The shared wrapper authenticates with the cached `jetscale` IAM Identity Center
+session and verifies the Global Services `PlatformReadOnly` role. It permits
+previews but blocks local live mutations by default. If authentication has
+expired, run `aws sso login --sso-session jetscale` and retry.
+
+`aws:maxRetries: "1"` bounds AWS API attempts; do not set it to `0`, which falls
+back to the provider default. Because an instance now exists, review every
 preview for replacement or deletion of `carbonforge-instance`, secret versions,
 security groups, and regional resources. Treat an instance replacement as a
 capacity-loss and service-interruption risk even when Pulumi proposes
@@ -124,12 +148,19 @@ The bootstrap authority and the routine deployment role are distinct controls;
 do not continue using broad bootstrap authority for routine updates.
 
 Do not run `pulumi up`, `destroy`, `refresh`, or `import` locally for `live`
-without an explicitly ticketed break-glass authorization. A break-glass path is
-not a substitute for normal review, quota, or cost approval.
+without explicit human authorization. Until the centrally managed
+`DeploymentSettings` path is complete, an authorized manual deployment of the
+exact reviewed `main` revision must use the shared tagged IAM Identity Center
+path and `JETSCALE_ALLOW_LOCAL_LIVE_MUTATION=1`. This temporary path is not a
+substitute for normal review, quota, replacement, or cost approval.
 
 ## Post-apply handoff
 
-The current deployment is at this gate. Use the verification runbook to collect
-health, OpenAI-compatible completion, LiteLLM connectivity, private-network, and
-telemetry evidence. Record failures and rollback instructions before enabling
-traffic.
+Direct runtime verification succeeded on 2026-08-11: model discovery returned
+HTTP 200, and a bounded chat request returned HTTP 200 with 8 completion tokens.
+The container had zero restarts, no OOM, and approximately 55 GiB of GPU memory in
+use. The evidence omitted generated content and secret material.
+
+Use the verification runbook to complete storage, driver/CUDA, telemetry, and
+LiteLLM connectivity evidence. Record failures and rollback instructions before
+enabling downstream traffic.

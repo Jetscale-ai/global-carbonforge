@@ -148,6 +148,7 @@ ${config.trustRemoteCode ? "      - --trust-remote-code\n" : ""}${config.languag
 ${config.enableAutoToolChoice ? "      - --enable-auto-tool-choice\n" : ""}      - --tool-call-parser
       - ${JSON.stringify(config.toolCallParser)}
     environment:
+      HUGGINGFACE_HUB_CACHE: "/root/.cache/huggingface"
       HF_HUB_OFFLINE: "1"
       HF_HUB_DISABLE_TELEMETRY: "1"
     ports:

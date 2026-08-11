@@ -7,24 +7,24 @@ with an OpenAI-compatible endpoint consumed downstream by
 `global-inference-litellm`.
 
 > [!WARNING]
-> Pulumi update 16 provisioned the private H100 infrastructure in Jakarta on
-> 2026-08-10. Infrastructure creation does not prove that bootstrap completed or
-> that the CarbonForge endpoint is healthy. Do not route traffic or make benchmark
-> claims until the verification runbook records SSM, model, completion, and
-> LiteLLM evidence.
+> The private Jakarta H100 now serves direct OpenAI-compatible completions, but
+> LiteLLM connectivity and routine Pulumi Deployments remain open. Pulumi still
+> proposes replacing the scarce running instance to reconcile corrected user
+> data; do not apply that replacement without fresh capacity evidence and explicit
+> authorization.
 
 ## Status
 
-| Area                   | Current state                                                                               |
-| ---------------------- | ------------------------------------------------------------------------------------------- |
-| Governance             | Ratified and managed through `../governance`                                                |
-| Infrastructure         | Update 16 provisioned a private Jakarta `p5.4xlarge` and supporting resources               |
-| Container supply chain | Private GHCR mirror independently inspected and pinned by digest                            |
-| Runtime                | Bootstrap and supervision are implemented; target-host health evidence remains open         |
-| Tracing                | Disabled pending authoritative destination semantics; `full` remains prohibited             |
-| Capacity               | Jakarta P-instance quota is 32 vCPUs; the running shape consumes 16                         |
-| Deployment             | Infrastructure provisioned; runtime verification and routine deployment handoff remain open |
-| Downstream integration | Private endpoint exported; LiteLLM ingress and routing remain open                          |
+| Area                   | Current state                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| Governance             | Ratified and managed through `../governance`                                                 |
+| Infrastructure         | Update 16 provisioned a private Jakarta `p5.4xlarge` and supporting resources                |
+| Container supply chain | Private GHCR mirror independently inspected and pinned by digest                             |
+| Runtime                | Direct model discovery and an 8-token completion are proven on the Jakarta H100              |
+| Tracing                | Disabled pending authoritative destination semantics; `full` remains prohibited              |
+| Capacity               | Jakarta P-instance quota is 32 vCPUs; replacement capacity is not currently demonstrated     |
+| Deployment             | In-place recovery succeeded; Pulumi user-data reconciliation and managed updates remain open |
+| Downstream integration | Private endpoint exported; LiteLLM ingress and routing remain open                           |
 
 ## Architecture and dependencies
 
@@ -91,11 +91,13 @@ model revision, scheduler, port, context, concurrency, parser, and tool settings
 It explicitly sets request tracing to `off` and never passes `--dry-run`.
 
 Bootstrap prefetches the exact public model revision with the image's bundled
-`hf download` command and starts vLLM with Hugging Face offline. A dry-run
-manifest query measured roughly 33.7 GB of model files; together with the local
-image, the encrypted 150 GiB root volume has practical PoC headroom, subject to
-post-boot free-space and log-growth checks. These settings are not compatibility
-or performance guarantees until exercised on the target H100.
+`hf download` command and starts vLLM with Hugging Face offline. The prefetch and
+runtime share `/root/.cache/huggingface` through `HUGGINGFACE_HUB_CACHE`; without
+that setting, offline vLLM cannot find the downloaded snapshot. A dry-run manifest
+query measured roughly 33.7 GB of model files; together with the local image, the
+encrypted 150 GiB root volume has practical PoC headroom, subject to post-boot
+free-space and log-growth checks. Direct compatibility is proven for model
+discovery and a bounded completion, but performance is not yet characterized.
 
 ## Repository layout
 
@@ -137,30 +139,41 @@ CARBONFORGE_BASE_URL=http://PRIVATE_ENDPOINT:8000/v1 pnpm smoke:runtime
 It verifies model discovery and a fixed chat completion while omitting generated
 content from output. See the [verification runbook](docs/runbooks/verification.md).
 
-The wrapper verifies the Global Services account (`728827482753`). It blocks
-local `up`, `destroy`, `refresh`, and `import` against `live` unless a human has
-explicitly authorized a ticketed `DR014_BREAKGLASS=1` path. Routine live updates
-must use Pulumi Deployments.
+The `pulumi` script invokes the shared
+`../security-governance/scripts/pulumi-with-auth.sh` launcher. Local previews use
+the cached `jetscale` IAM Identity Center session and verify the Global Services
+account (`728827482753`) plus the `PlatformReadOnly` role. If the session is
+expired, run `aws sso login --sso-session jetscale` and retry.
+
+Routine live updates must use Pulumi Deployments. Until CarbonForge's centrally
+managed `DeploymentSettings` are complete, an explicitly authorized manual
+update of the exact reviewed `main` revision requires the governed, tagged IAM
+Identity Center `global-breakglass-admin` path plus
+`JETSCALE_ALLOW_LOCAL_LIVE_MUTATION=1`.
 
 ## Deployment status and next gates
 
 Pulumi update 16 completed in Jakarta on 2026-08-10. EC2 placement took about 14
-minutes, including 832 seconds to create the `p5.4xlarge`. The stack now exports a
-private instance ID, private IP, security group ID, `/v1` base URL, and
-`/v1/models` health URL.
+minutes, including 832 seconds to create the `p5.4xlarge`. Updates 17 and 18 could
+not allocate replacement capacity; create-before-delete preserved the running
+instance. Under `INC-002`, the corrected bootstrap was rerun in place through SSM.
+The Docker package conflict and mismatched offline Hugging Face cache path were
+corrected without replacing the host.
 
-The apply closes infrastructure placement only. Before routing traffic or
-calling the service ready:
+Direct verification on 2026-08-11 proved `/v1/models` HTTP 200 and a bounded chat
+completion with HTTP 200, 8 completion tokens, and `finish_reason=length`. The
+container remained running with zero restarts, no OOM, and about 55 GiB of GPU
+memory in use. Generated content and secrets were not retained in the evidence.
 
-1. Verify SSM reachability, EC2 status checks, bootstrap completion, GPU driver,
-   disk headroom, systemd service, and container state.
-2. Run direct `/v1/models` and bounded chat-completion smoke checks from an
-   authorized private client.
-3. Configure and verify LiteLLM's source-security-group ingress and routing.
-4. Confirm request tracing remains off and logs contain no secret or content
+The remaining gates are:
+
+1. Record full storage, driver/CUDA, and log-content inspection evidence.
+2. Configure and verify LiteLLM's source-security-group ingress and routing.
+3. Confirm request tracing remains off and logs contain no secret or content
    material.
-5. Configure routine Pulumi Deployments use of the exported deployment role and
-   reserve local mutation for explicitly authorized break-glass operations.
+4. Configure routine Pulumi Deployments use of the exported deployment role.
+5. Reconcile corrected EC2 user data only when replacement capacity is proven and
+   a replacement is explicitly authorized.
 6. Record Jakarta-specific cost evidence before any replacement, expansion, or
    continued-operation decision.
 

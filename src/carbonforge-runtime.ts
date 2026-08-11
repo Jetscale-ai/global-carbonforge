@@ -240,9 +240,6 @@ export class CarbonForgeRuntime extends pulumi.ComponentResource {
       {
         parent: this,
         dependsOn: [ghcrTokenVersion, licenseVersion],
-        customTimeouts: {
-          create: "3m",
-        },
       },
     );
 

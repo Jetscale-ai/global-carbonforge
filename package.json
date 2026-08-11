@@ -8,8 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "format": "prettier --write --ignore-unknown .",
     "format:check": "prettier --check --ignore-unknown .",
-    "preflight": "./scripts/preflight.sh",
-    "pulumi": "./scripts/pulumi-with-auth.sh",
+    "pulumi": "../security-governance/scripts/pulumi-with-auth.sh",
     "secrets:configure": "./scripts/configure-secrets.sh",
     "smoke:runtime": "node --import tsx scripts/runtime-smoke.ts",
     "test": "node --import tsx --test tests/**/*.test.ts"

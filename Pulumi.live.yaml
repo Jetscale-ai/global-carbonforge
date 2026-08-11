@@ -35,4 +35,6 @@ config:
   global-carbonforge:containerDigest: sha256:a3999f60989e47d9059cfedb0999a2342adb41cad1f20999938ac3a8f4f0d5de
   global-carbonforge:ghcrPullToken:
     secure: AAABAO9/kNGrZnp4mHy28igvo2jqCMdQohRY8RVDvLweN1R/f6mZqe/JQF3m1cnkQYRWcO1rTRK0kgT6BFmVCbZ6TC1FM+P6
-  aws:maxRetries: "0"
+  # A positive value is required; zero is treated as unset and falls back to
+  # the provider default of 25 attempts. Keep scarce H100 capacity probes fast.
+  aws:maxRetries: "1"

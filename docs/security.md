@@ -3,13 +3,17 @@
 ## Account and deployment controls
 
 The sole account target is Global Services AWS account `728827482753`; the live
-stack is deployed in Jakarta (`ap-southeast-3`). The Pulumi program checks caller
-identity against that account. The shell wrapper also authenticates through the
-management account before invoking Pulumi.
+stack is deployed in Jakarta (`ap-southeast-3`). The shared launcher uses the
+cached `jetscale` IAM Identity Center session and verifies the account and
+expected SSO role before invoking Pulumi. It removes ambient static AWS
+credentials from child environments.
 
-Routine updates to `JetScale/global-carbonforge/live` use Pulumi Deployments.
-The wrapper and program block local live mutations unless an explicitly
-authorized, ticketed break-glass operation sets `DR014_BREAKGLASS=1`.
+The Pulumi program independently checks the caller account and ARN. Routine
+updates to `JetScale/global-carbonforge/live` require
+`global-carbonforge-live-pulumi-deployment`. An explicitly authorized manual
+recovery requires both an assumed `global-breakglass-admin` identity and
+`JETSCALE_ALLOW_LOCAL_LIVE_MUTATION=1`; setting an environment variable alone
+cannot authorize an unrelated principal.
 
 ## Network and administration
 

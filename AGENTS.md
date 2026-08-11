@@ -86,8 +86,10 @@ The selected bundles are:
 - The Pulumi program must reject credentials for any other AWS account.
 - Routine live mutations must run through Pulumi Deployments using a
   stack-scoped role anchored in `JetScale/global-cloud-identity/live`.
-- Local live `up`, `destroy`, `refresh`, and `import` operations require an
-  explicitly ticketed break-glass path.
+- Local mutation-capable commands are blocked by the shared launcher at
+  `../security-governance/scripts/pulumi-with-auth.sh` and the runtime guard.
+  An explicitly authorized manual live update requires the shared tagged IAM
+  Identity Center path plus `JETSCALE_ALLOW_LOCAL_LIVE_MUTATION=1`.
 - Agents must not run `pulumi up`, `pulumi destroy`, or direct EC2 mutation
   commands against live infrastructure without explicit human authorization.
 - H100 purchases, Capacity Reservations, Savings Plans, and long-lived

@@ -125,8 +125,12 @@ values.
 - Routine applies belong in Pulumi Deployments using the stack-scoped OIDC role.
   The initial break-glass apply created that role; verify a preview while assuming
   the exported `deploymentRoleArn` before routine updates.
-- Local live mutation is break-glass only and must be ticketed and auditable.
-- Preserve the AWS account guard and never weaken it to unblock a preview.
+- Local live mutation is recovery-only and must be explicitly authorized and
+  auditable. It uses the shared tagged IAM Identity Center path plus
+  `JETSCALE_ALLOW_LOCAL_LIVE_MUTATION=1`; the legacy management-account TOTP and
+  1Password path is not supported.
+- Preserve the AWS account and caller-role guards and never weaken them to
+  unblock a preview.
 
 ## 7. Post-Deploy Evidence
 

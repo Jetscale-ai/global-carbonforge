@@ -4,10 +4,7 @@ import * as pulumi from "@pulumi/pulumi";
 import { CarbonForgeRuntime } from "./src/carbonforge-runtime";
 import { validateContainerConfig } from "./src/container-config";
 import { DeploymentRole } from "./src/deployment-role";
-import {
-  enforceLiveMutationGuard,
-  enforceTargetAwsAccount,
-} from "./src/guards";
+import { enforceRuntimeIdentity } from "./src/guards";
 import { validateHostConfig } from "./src/host-config";
 import { validateRuntimeConfig } from "./src/runtime-config";
 import { getRuntimeSecrets } from "./src/secret-config";
@@ -55,8 +52,7 @@ const runtime = validateRuntimeConfig({
     "disabled" | "normal" | "full",
 });
 
-enforceLiveMutationGuard(project, stack);
-enforceTargetAwsAccount(targetAwsAccountId);
+enforceRuntimeIdentity(targetAwsAccountId, project, stack);
 
 const region = aws.config.region ?? "us-east-1";
 const network = getGlobalCloudNetworkOutputs(
