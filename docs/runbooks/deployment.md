@@ -12,17 +12,19 @@ That original instance was subsequently destroyed. Updates 20 through 26 rebuilt
 supporting resources, but Jakarta repeatedly returned
 `InsufficientInstanceCapacity` for a new `p5.4xlarge`. Updates 27 and 28 then
 successfully destroyed the stack. Subsequent N. Virginia attempts reported
-insufficient `p5.4xlarge` capacity, leaving no runtime endpoint. The next isolated
-live stack targets the shared private subnet in `us-east-2a`; Ohio's approved
-regional P-instance quota is 32 vCPUs.
+insufficient `p5.4xlarge` capacity, leaving no runtime endpoint. Ohio
+`us-east-2a` subsequently failed twice and `us-east-2b` failed once for the same
+reason. AWS identified `us-east-2c` as the remaining Ohio alternative, so the
+next isolated live stack targets its private subnet. Ohio's approved regional
+P-instance quota is 32 vCPUs.
 
 The stack sets `aws:maxRetries: "1"`. A value of `0` was treated as unset and
 fell back to the provider default of 25 attempts. The ineffective
 `customTimeouts.create: 3m` option was removed because it did not interrupt the
 provider's internal `RunInstances` retry loop. A failed capacity probe should
 return quickly; it does not make physical H100 capacity available. `us-east-2`
-advertises `p5.4xlarge` in `us-east-2a`; this still does not guarantee physical
-placement.
+advertises `p5.4xlarge` in `us-east-2a`, `us-east-2b`, and `us-east-2c`; this
+still does not guarantee physical placement.
 
 The original cloud-init failed before secret retrieval because the pinned DLAMI
 already provides Docker CE, Compose, and `containerd.io`, while bootstrap also
@@ -59,37 +61,37 @@ physical VPC or subnet IDs.
 Operators select one coherent placement with:
 
 ```bash
-pnpm placement:select us-east-2a
-pnpm pulumi preview --diff -s JetScale/global-carbonforge/live-aws-us-east-2a
+pnpm placement:select us-east-2c
+pnpm secrets:configure -- JetScale/global-carbonforge/live-aws-us-east-2c
+pnpm pulumi preview --diff -s JetScale/global-carbonforge/live-aws-us-east-2c
 ```
 
-The selector targets `JetScale/global-carbonforge/live-aws-us-east-2a` and
-updates `global-carbonforge:activePlacement` and `aws:region`. The program
-independently rejects drift between stack name, cloud, placement, and region. During preview, it intersects the subnets in the selected AZ and
-VPC with `global-cloud-network`'s exported private-subnet IDs and requires
-exactly one match. It also rejects public IPv4 auto-assignment. This makes the
+The selector targets the placement-specific stack and updates
+`global-carbonforge:activePlacement` and `aws:region`. The program independently
+rejects drift between stack name, cloud, placement, and region. During preview,
+it intersects the subnets in the selected AZ and VPC with
+`global-cloud-network`'s exported private-subnet IDs and requires exactly one
+match. It also rejects public IPv4 auto-assignment. This makes the
 network stack authoritative and allows subnet replacement without changing the
 CarbonForge catalog.
 
 Each candidate targets one `p5.4xlarge`: 16 P-family vCPUs and one H100.
 
-| Placement         | AWS location | P-vCPU quota | Network | Activation    |
-| ----------------- | ------------ | ------------ | ------- | ------------- |
-| `us-east-1b`      | N. Virginia  | 32           | Ready   | Ready         |
-| `us-east-2a`      | Ohio         | 32           | Ready   | Ready         |
-| `us-west-2a`      | Oregon       | 32           | Missing | Blocked       |
-| `ap-northeast-1c` | Tokyo        | 32           | Ready   | Config needed |
-| `ap-southeast-3a` | Jakarta      | 32           | Ready   | Config needed |
-| `eu-west-2a`      | London       | Appeal to 32 | Missing | Blocked       |
-| `ap-south-1a`     | Mumbai       | Appeal to 32 | Missing | Blocked       |
-| `ap-southeast-2b` | Sydney       | Appeal to 32 | Missing | Blocked       |
-| `sa-east-1c`      | São Paulo    | Appeal to 32 | Missing | Blocked       |
+| AWS location | Region           | Ready placements                                       |
+| ------------ | ---------------- | ------------------------------------------------------ |
+| N. Virginia  | `us-east-1`      | `us-east-1a` through `us-east-1f`                      |
+| Ohio         | `us-east-2`      | `us-east-2a`, `us-east-2b`, `us-east-2c`               |
+| Oregon       | `us-west-2`      | `us-west-2a`, `us-west-2b`, `us-west-2c`, `us-west-2d` |
+| London       | `eu-west-2`      | `eu-west-2a`, `eu-west-2b`, `eu-west-2c`               |
+| Mumbai       | `ap-south-1`     | `ap-south-1a`, `ap-south-1b`, `ap-south-1c`            |
+| Tokyo        | `ap-northeast-1` | `ap-northeast-1c`                                      |
+| Jakarta      | `ap-southeast-3` | `ap-southeast-3a`                                      |
+| São Paulo    | `sa-east-1`      | `sa-east-1c`                                           |
 
-The five missing regional networks must be added by `global-cloud-network`, not
-this stack. A quota- and network-ready placement also requires a committed
-provider-specific stack configuration before the selector permits activation. That expansion would add regional infrastructure including standing
-NAT gateway cost and requires a separate reviewed and approved change. Quota and
-instance-type offering do not guarantee physical H100 capacity.
+Sydney `ap-southeast-2b` remains blocked while its quota appeal and governed
+network are incomplete. Every ready placement has a committed provider-specific
+stack configuration. Quota and instance-type offering do not guarantee physical
+H100 capacity.
 
 Each placement has an isolated stack. Selecting another placement creates or
 updates that placement's stack rather than replacing a different deployment.
@@ -138,8 +140,9 @@ Verify that:
   source values before destruction;
 - the [runtime invocation](../runtime-invocation.md) explicitly overrides the
   pinned image's dry-run Qwen2.5 default with the reviewed Qwen3.5 command;
-- the pinned AMI is `ami-095f757d9450363f1` in `us-east-2a`, and the dynamically
-  resolved private subnet is exported by `global-cloud-network`; its driver is
+- the pinned AMI is `ami-095f757d9450363f1` in `us-east-2`, and the dynamically
+  resolved private subnet for the selected Ohio AZ is exported by
+  `global-cloud-network`; its driver is
   confirmed compatible with the image's CUDA 13 requirement;
 - the subnet retains active NAT egress for AWS APIs, GHCR, NVIDIA package setup,
   and the public Hugging Face model download; VPC DNS and NACL behavior are
@@ -157,7 +160,7 @@ read-only IAM Identity Center preflight client:
 
 ```bash
 pnpm --dir ../security-governance jetscale-preflight -- exec --provider aws --account global-services --access readonly -- aws service-quotas get-service-quota --service-code ec2 --quota-code L-417A185B --region us-east-2
-pnpm --dir ../security-governance jetscale-preflight -- exec --provider aws --account global-services --access readonly -- aws ec2 describe-instance-type-offerings --region us-east-2 --location-type availability-zone --filters Name=instance-type,Values=p5.4xlarge Name=location,Values=us-east-2a
+pnpm --dir ../security-governance jetscale-preflight -- exec --provider aws --account global-services --access readonly -- aws ec2 describe-instance-type-offerings --region us-east-2 --location-type availability-zone --filters Name=instance-type,Values=p5.4xlarge
 ```
 
 Confirm the effective quota is 32. An offering result validates the configuration
@@ -173,7 +176,7 @@ pnpm install
 pnpm build
 pnpm test
 pnpm format:check
-pnpm pulumi preview --diff -s JetScale/global-carbonforge/live-aws-us-east-2a
+pnpm pulumi preview --diff -s JetScale/global-carbonforge/live-aws-us-east-2c
 ```
 
 The shared wrapper authenticates with the cached `jetscale` IAM Identity Center

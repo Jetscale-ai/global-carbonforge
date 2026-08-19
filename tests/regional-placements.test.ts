@@ -23,15 +23,17 @@ test("specifies every documented p5.4xlarge candidate region", () => {
   );
 });
 
-test("selects the approved Ohio placement as one coherent unit", () => {
-  assert.deepEqual(selectRegionalPlacement("us-east-2a"), {
-    ...REGIONAL_PLACEMENTS["us-east-2a"],
-    id: "us-east-2a",
-    accelerator: "nvidia-h100",
-    gpuCount: 1,
-    machineType: "p5.4xlarge",
-    readiness: "ready",
-  });
+test("selects each approved Ohio placement as one coherent unit", () => {
+  for (const id of ["us-east-2a", "us-east-2b", "us-east-2c"] as const) {
+    assert.deepEqual(selectRegionalPlacement(id), {
+      ...REGIONAL_PLACEMENTS[id],
+      id,
+      accelerator: "nvidia-h100",
+      gpuCount: 1,
+      machineType: "p5.4xlarge",
+      readiness: "ready",
+    });
+  }
 });
 
 test("rejects unknown placements", () => {
@@ -43,7 +45,7 @@ test("rejects unknown placements", () => {
 
 test("rejects candidates whose quota appeal is still pending", () => {
   assert.throws(
-    () => selectRegionalPlacement("eu-west-2a"),
+    () => selectRegionalPlacement("ap-southeast-2b"),
     /quota is still under appeal/,
   );
 });

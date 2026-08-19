@@ -9,10 +9,10 @@ with an OpenAI-compatible endpoint consumed downstream by
 
 > [!WARNING]
 > The original Jakarta H100 proved direct OpenAI-compatible completions but was
-> subsequently destroyed. After N. Virginia rejected the replacement H100 for
-> insufficient physical capacity, the next isolated live stack targets `us-east-2a`.
-> The catalog supports cycling among nine regional candidates as quota and network
-> prerequisites permit.
+> subsequently destroyed. N. Virginia and Ohio `us-east-2a` and `us-east-2b`
+> then rejected replacement H100 launches for insufficient physical capacity.
+> AWS identified `us-east-2c` as the remaining Ohio alternative, so the next
+> isolated live attempt targets `us-east-2c`.
 > Physical H100 placement, bootstrap verification, LiteLLM connectivity, and
 > routine Pulumi Deployments remain open.
 
@@ -21,7 +21,7 @@ with an OpenAI-compatible endpoint consumed downstream by
 | Area                   | Current state                                                                                           |
 | ---------------------- | ------------------------------------------------------------------------------------------------------- |
 | Governance             | Ratified and managed through `../governance`                                                            |
-| Infrastructure         | Ohio network exists; committed live configuration targets a private `us-east-2a` `p5.4xlarge`           |
+| Infrastructure         | Ohio has private subnets and isolated stack configs for `us-east-2a`, `us-east-2b`, and `us-east-2c`    |
 | Container supply chain | Private GHCR mirror independently inspected and pinned by digest                                        |
 | Runtime                | Historical Jakarta evidence proved direct model discovery and an 8-token completion                     |
 | Tracing                | Disabled pending authoritative destination semantics; `full` remains prohibited                         |
@@ -80,20 +80,22 @@ this initial deployment.
 | Tool-call parser              | `qwen3_coder`                                                                                                  |
 | Request tracing               | Disabled until authoritative CarbonForge destination semantics are confirmed                                   |
 
-The candidate placement catalog covers every documented region currently being
-considered for this 16-vCPU, single-H100 shape:
+The candidate placement catalog covers every currently offered AZ in the eight
+regions with approved 32-vCPU On-Demand P-instance quota and governed networks:
 
-| Placement         | AWS location | P-vCPU quota | Governed network | Selectable now     |
-| ----------------- | ------------ | ------------ | ---------------- | ------------------ |
-| `us-east-1b`      | N. Virginia  | 32           | Ready            | Yes                |
-| `us-east-2a`      | Ohio         | 32           | Ready            | Yes                |
-| `us-west-2a`      | Oregon       | 32           | Missing          | No                 |
-| `ap-northeast-1c` | Tokyo        | 32           | Ready            | No — config needed |
-| `ap-southeast-3a` | Jakarta      | 32           | Ready            | No — config needed |
-| `eu-west-2a`      | London       | Appeal to 32 | Missing          | No                 |
-| `ap-south-1a`     | Mumbai       | Appeal to 32 | Missing          | No                 |
-| `ap-southeast-2b` | Sydney       | Appeal to 32 | Missing          | No                 |
-| `sa-east-1c`      | São Paulo    | Appeal to 32 | Missing          | No                 |
+| AWS location | Region           | Selectable placements                                  |
+| ------------ | ---------------- | ------------------------------------------------------ |
+| N. Virginia  | `us-east-1`      | `us-east-1a` through `us-east-1f`                      |
+| Ohio         | `us-east-2`      | `us-east-2a`, `us-east-2b`, `us-east-2c`               |
+| Oregon       | `us-west-2`      | `us-west-2a`, `us-west-2b`, `us-west-2c`, `us-west-2d` |
+| London       | `eu-west-2`      | `eu-west-2a`, `eu-west-2b`, `eu-west-2c`               |
+| Mumbai       | `ap-south-1`     | `ap-south-1a`, `ap-south-1b`, `ap-south-1c`            |
+| Tokyo        | `ap-northeast-1` | `ap-northeast-1c`                                      |
+| Jakarta      | `ap-southeast-3` | `ap-southeast-3a`                                      |
+| São Paulo    | `sa-east-1`      | `sa-east-1c`                                           |
+
+Sydney `ap-southeast-2b` remains cataloged but blocked while its quota appeal
+and governed network are incomplete.
 
 “Selectable now” means the placement passes repository prerequisites and has a
 committed provider-specific stack configuration; it does not guarantee physical
@@ -155,8 +157,9 @@ Select a deployment-ready H100 placement and preview the intended stack through
 the authenticated wrapper:
 
 ```bash
-pnpm placement:select us-east-2a
-pnpm pulumi preview --diff -s JetScale/global-carbonforge/live-aws-us-east-2a
+pnpm placement:select us-east-2c
+pnpm secrets:configure -- JetScale/global-carbonforge/live-aws-us-east-2c
+pnpm pulumi preview --diff -s JetScale/global-carbonforge/live-aws-us-east-2c
 ```
 
 `placement:select` targets the placement-specific stack and updates both
@@ -165,10 +168,14 @@ runtime catalog. Stack names follow
 `<environment>-<cloud>-<provider-location>`; the program rejects mismatches
 between the stack name and configured placement. During preview, CarbonForge
 resolves the selected AZ against `global-cloud-network`'s exported private
-subnets; no physical subnet IDs are maintained here. Currently selectable placements are `us-east-1b` and `us-east-2a`. Other catalog
-entries fail before mutation until their quota, governed-network, and committed
-stack-configuration prerequisites are met. Switching regions replaces regional runtime resources and
-requires a reviewed preview plus explicit live-action authorization.
+subnets; no physical subnet IDs are maintained here. Currently selectable
+placements with committed configurations cover every offered AZ in the eight
+approved regions listed above. Each isolated stack stores its own encrypted copy
+of the shared runtime credentials. Blocked catalog entries fail before mutation
+until their quota, governed-network, and committed stack-configuration
+prerequisites are met.
+Switching placements requires a reviewed preview plus explicit live-action
+authorization.
 
 Run the bounded private-endpoint smoke test against the provisioned runtime from
 an authorized network client:
@@ -201,11 +208,11 @@ and a bounded chat completion with HTTP 200, 8 completion tokens, zero restarts,
 no OOM, and about 55 GiB of GPU memory in use. That host was subsequently
 destroyed; this remains historical compatibility evidence only.
 
-After AWS reported insufficient `p5.4xlarge` capacity in N. Virginia, the next
-isolated live configuration targets `us-east-2a` and its regional copy of the
-proven 2026-07-28 DLAMI release. If that AZ also lacks capacity, the attended
-placement workflow can cycle through the other ready candidates. Physical capacity remains
-an apply-time dependency in every region.
+After AWS reported insufficient `p5.4xlarge` capacity in N. Virginia,
+`us-east-2a`, and `us-east-2b`, it identified `us-east-2c` as the remaining Ohio
+alternative. The next isolated live configuration targets `us-east-2c` and the
+same regional copy of the proven 2026-07-28 DLAMI release. Physical capacity
+remains an apply-time dependency in every AZ.
 
 The remaining gates are:
 

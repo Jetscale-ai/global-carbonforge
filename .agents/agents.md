@@ -13,7 +13,7 @@ Use the repository scripts for the expected minimum validation surface:
 pnpm install
 pnpm build
 pnpm test
-pnpm pulumi preview -s JetScale/global-carbonforge/live-aws-us-east-2a
+pnpm pulumi preview -s JetScale/global-carbonforge/live-aws-us-east-2c
 ```
 
 Do not claim these commands pass until the project and scripts exist and the

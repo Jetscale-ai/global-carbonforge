@@ -10,7 +10,6 @@ config:
   global-carbonforge:gpuCount: "1"
   global-carbonforge:rootVolumeSizeGiB: "150"
   global-carbonforge:baseAmiFamily: Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
-
   global-carbonforge:publicIpv4Enabled: "false"
   global-carbonforge:sshIngressEnabled: "false"
   global-carbonforge:modelName: Qwen/Qwen3.5-27B-FP8
@@ -29,9 +28,11 @@ config:
   global-carbonforge:enableAutoToolChoice: "true"
   global-carbonforge:toolCallParser: qwen3_coder
   global-carbonforge:requestTraceMode: disabled
-
   global-carbonforge:containerDigest: sha256:a3999f60989e47d9059cfedb0999a2342adb41cad1f20999938ac3a8f4f0d5de
-
   # A positive value is required; zero is treated as unset and falls back to
   # the provider default of 25 attempts. Keep scarce H100 capacity probes fast.
   aws:maxRetries: "1"
+  global-carbonforge:ghcrPullToken:
+    secure: AAABAC+YeMWpgHMBh1T52pxbzh8MgS+BtE5Y0R4bYUmRJBgEfyXKSXF1nzC+kng9MrL1ZwWDgXLdPeg3Q8rOIkZlVu+V3fOF
+  global-carbonforge:carbonforgeLicenseKey:
+    secure: AAABADuoz867va3UrILuH2LJd9PfI2y0jeFb0H5z/QCWyMI3aorNNba/Ux3eom8t13I6RVuxGURpfG6YXJUPnal6R/zUwnilYB0jrG/yW/10iRxQ4zdMmh+aRgBOQ3WpIIdWEfKb1oxQ0V/TNdqFb3UBF4iL73uNbuCA8fZlHFuw6VsgGYz9t5H18a3du6oQN7WVvx8MaY2+gN96ECneL2FULllCGaxndiQxdvDKo+/dkK05O3ykQSpRG7BmptN124Z4zagDyf5Wp4cqgL7iu/XB7KYK/+i/sFyMnFUerQzeKwhI

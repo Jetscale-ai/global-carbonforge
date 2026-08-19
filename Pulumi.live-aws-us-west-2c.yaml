@@ -1,6 +1,6 @@
 config:
-  aws:region: us-east-1
-  global-carbonforge:activePlacement: us-east-1b
+  aws:region: us-west-2
+  global-carbonforge:activePlacement: us-west-2c
   global-carbonforge:targetAwsAccountId: "728827482753"
   global-carbonforge:networkStackRef: JetScale/global-cloud-network/live
   global-carbonforge:identityStackRef: JetScale/global-cloud-identity/live
@@ -33,6 +33,6 @@ config:
   # the provider default of 25 attempts. Keep scarce H100 capacity probes fast.
   aws:maxRetries: "1"
   global-carbonforge:carbonforgeLicenseKey:
-    secure: AAABANvqu1yz9pQN2QR4liI5/Kw2/jv16bO6OqtDl46oG3dhQC2yLQkzJCqhlSWidYHZrS7F4l0BQ66bt0mmA8Y7ExI74ERriHnbnUH7M7pQuMX+G67lKcLQQaJgDF62W1PK23M8nGoHY5NuphWIde250UeAwhF8K0YEXetnNwmDnVjBplru1o9NRIP/XlVx5vEX632FAsxUBz/32W9484xg1crKagQQs9YDUwrc91dgEt/06eWaT/oboQK7oj+60WpQvnoBL2QavH4+XhNxw11PAhF+49hQVu2p24nLBAUXY/Sm
+    secure: AAABAOXOPdgJE1d72/Xd2hcog5b7Lrsr7IeniohNl+xTTZxbXJQw3sdHRyyfk1og1tmul32iJOwWYZIEkQtF325iQqkw6ihFWM+Ryj57Wk4p63NdSC+td5pX2v1NCXf1MwYTiz0NkteRCAzLFEXNtY/OUMlTfv8Ux7Bqfr07ETsNs00tbv4tA/N2yzkhGxRhhGcmRDHd2Wa90q8LPuCMAlIb7aixJRffLHHmPu+cx8kW1nH57b1m5bQNWA2QMo+9nFdWyIgXCiviBaPfKyKUHZMOecvG5kwfN08CGbDlHfpojCH9
   global-carbonforge:ghcrPullToken:
-    secure: AAABALtK/Ydos7BembP59ioObeGpfszA/nnJphjSX1oO0PmaNJJ/caOJWIV22Kxzxy1ffD9oTd1XNo79rkY84hrTGM+HInmN
+    secure: AAABADzpjKVe9w3F0P3CDnNRc5P5E3+p1PbS7kP6tlHjNl5n5Q/LgyyonBG16Nz2LcEr0YYxsKdwQNQlXIws+h3Fb7FaKgvR

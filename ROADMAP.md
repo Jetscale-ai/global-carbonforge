@@ -15,11 +15,12 @@ or OOM. That host was subsequently destroyed after repeated Jakarta replacement
 capacity failures.
 
 The live stacks currently have no H100. AWS reported insufficient `p5.4xlarge`
-capacity in N. Virginia, so the next isolated stack targets `us-east-2a`. The
-placement catalog also covers Oregon, Tokyo, Jakarta, London, Mumbai, Sydney, and
-São Paulo. Each candidate is a 16-P-vCPU, single-H100 `p5.4xlarge`. N. Virginia,
-Ohio, Tokyo, and Jakarta currently satisfy quota and network prerequisites; the
-other candidates remain blocked by network expansion, quota appeals, or both.
+capacity in N. Virginia and Ohio `us-east-2a` and `us-east-2b`, then identified
+`us-east-2c` as the remaining Ohio alternative. The next isolated stack targets
+`us-east-2c`. Every offered AZ in N. Virginia, Ohio, Oregon, London, Mumbai,
+Tokyo, Jakarta, and São Paulo now has a committed isolated stack configuration
+backed by approved 32-vCPU quota and a governed network. Offering and quota do
+not guarantee physical capacity.
 
 The critical path is now:
 

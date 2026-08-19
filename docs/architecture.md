@@ -7,10 +7,11 @@ firewall identity, runtime bootstrap, health contract, and endpoint outputs for
 a CarbonForge-optimized model runtime. The provider-neutral layer defines
 placement, workload, and downstream contracts; provider adapters retain native
 network, identity, secret, and administration semantics. AWS is currently the
-only implemented adapter. After insufficient-capacity responses in N. Virginia,
-the next isolated live configuration targets `us-east-2a`; eight additional
-regional candidates are cataloged for attended capacity cycling as their network
-and quota prerequisites permit. The original Jakarta host is destroyed and
+only implemented adapter. After insufficient-capacity responses in N. Virginia
+and Ohio `us-east-2a` and `us-east-2b`, the next isolated live configuration
+targets `us-east-2c`. Additional regional candidates are cataloged for attended
+capacity cycling as their network and quota prerequisites permit. The original
+Jakarta host is destroyed and
 remains historical compatibility evidence. Current runtime health and downstream
 reachability require a successful new deployment and post-deploy verification.
 
@@ -89,15 +90,13 @@ Deep Learning AMI with a 150 GiB encrypted root volume. The active placement
 selects a pinned regional copy of the proven 2026-07-28 release and resolves a
 private subnet from `global-cloud-network`.
 
-The runtime catalog can target N. Virginia (`us-east-1b`), Ohio
-(`us-east-2a`), Oregon (`us-west-2a`), Tokyo (`ap-northeast-1c`), Jakarta
-(`ap-southeast-3a`), London (`eu-west-2a`), Mumbai (`ap-south-1a`), Sydney
-(`ap-southeast-2b`), and São Paulo (`sa-east-1c`). N. Virginia, Ohio, Tokyo, and
-Jakarta currently have both a 32-vCPU quota and a governed network. Oregon has
-quota but needs network expansion. The remaining four need both their
-quota appeals and network expansion completed. Offering and quota evidence do
-not guarantee physical H100 capacity at launch; regional cost evidence remains
-required.
+The runtime catalog covers every currently offered AZ in N. Virginia, Ohio,
+Oregon, London, Mumbai, Tokyo, Jakarta, and São Paulo. Those eight regions have
+approved 32-vCPU On-Demand P-instance quota, governed private networks, pinned
+regional AMIs, and isolated stack configurations. Sydney `ap-southeast-2b`
+remains cataloged but blocked while its quota appeal and network are incomplete.
+Offering and quota evidence do not guarantee physical H100 capacity at launch;
+regional cost evidence remains required.
 
 The sample is intentionally minimal and public-facing. This architecture does
 not adopt its default VPC, public IPv4, SSH key, CIDR ingress, user-data secrets,
