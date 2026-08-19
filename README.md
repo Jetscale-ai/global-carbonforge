@@ -1,37 +1,40 @@
 # global-carbonforge
 
-`global-carbonforge` is the Pulumi program for a private, CarbonForge-optimized
-AI inference runtime in Jetscale's Global Services AWS account. Its intended
-initial workload is the FP8 `Qwen/Qwen3.5-27B-FP8` chat model on one NVIDIA H100,
+`global-carbonforge` is the Pulumi program for private, CarbonForge-optimized
+AI inference runtimes across provider-native cloud foundations. AWS is the only
+implemented deployment adapter today; GCP and Azure are explicit, fail-closed
+future targets. Its intended initial workload is the FP8 `Qwen/Qwen3.5-27B-FP8` chat model on one NVIDIA H100,
 with an OpenAI-compatible endpoint consumed downstream by
 `global-inference-litellm`.
 
 > [!WARNING]
-> The private Jakarta H100 now serves direct OpenAI-compatible completions, but
-> LiteLLM connectivity and routine Pulumi Deployments remain open. Pulumi still
-> proposes replacing the scarce running instance to reconcile corrected user
-> data; do not apply that replacement without fresh capacity evidence and explicit
-> authorization.
+> The original Jakarta H100 proved direct OpenAI-compatible completions but was
+> subsequently destroyed. After N. Virginia rejected the replacement H100 for
+> insufficient physical capacity, the next isolated live stack targets `us-east-2a`.
+> The catalog supports cycling among nine regional candidates as quota and network
+> prerequisites permit.
+> Physical H100 placement, bootstrap verification, LiteLLM connectivity, and
+> routine Pulumi Deployments remain open.
 
 ## Status
 
-| Area                   | Current state                                                                                |
-| ---------------------- | -------------------------------------------------------------------------------------------- |
-| Governance             | Ratified and managed through `../governance`                                                 |
-| Infrastructure         | Update 16 provisioned a private Jakarta `p5.4xlarge` and supporting resources                |
-| Container supply chain | Private GHCR mirror independently inspected and pinned by digest                             |
-| Runtime                | Direct model discovery and an 8-token completion are proven on the Jakarta H100              |
-| Tracing                | Disabled pending authoritative destination semantics; `full` remains prohibited              |
-| Capacity               | Jakarta P-instance quota is 32 vCPUs; replacement capacity is not currently demonstrated     |
-| Deployment             | In-place recovery succeeded; Pulumi user-data reconciliation and managed updates remain open |
-| Downstream integration | Private endpoint exported; LiteLLM ingress and routing remain open                           |
+| Area                   | Current state                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------- |
+| Governance             | Ratified and managed through `../governance`                                                            |
+| Infrastructure         | Ohio network exists; committed live configuration targets a private `us-east-2a` `p5.4xlarge`           |
+| Container supply chain | Private GHCR mirror independently inspected and pinned by digest                                        |
+| Runtime                | Historical Jakarta evidence proved direct model discovery and an 8-token completion                     |
+| Tracing                | Disabled pending authoritative destination semantics; `full` remains prohibited                         |
+| Capacity               | `us-east-2` Running On-Demand P-instance quota is verified at 32 vCPUs; physical capacity is apply-time |
+| Deployment             | Partial stack is reconciled; only H100 placement and subsequent verification remain                     |
+| Downstream integration | No current endpoint; LiteLLM ingress and routing remain open                                            |
 
 ## Architecture and dependencies
 
 ```mermaid
 flowchart TD
-  Network[global-cloud-network/live] --> CF[global-carbonforge/live]
-  Identity[global-cloud-identity/live] --> CF
+  Network[Provider foundation network] --> CF[Provider-specific CarbonForge stack]
+  Identity[Provider foundation identity] --> CF
   Models[global-inference-models] -. owns catalog semantics .-> CF
   CF --> LiteLLM[global-inference-litellm]
   LiteLLM --> Clients[Private inference clients]
@@ -57,11 +60,11 @@ this initial deployment.
 | Private container mirror      | `ghcr.io/jetscale-ai/carbonforge-eval:v0.1.8-v0.1.3`                                                           |
 | Immutable container reference | `ghcr.io/jetscale-ai/carbonforge-eval@sha256:a3999f60989e47d9059cfedb0999a2342adb41cad1f20999938ac3a8f4f0d5de` |
 | Hardware target               | One NVIDIA H100                                                                                                |
-| EC2 shape                     | `p5.4xlarge`                                                                                                   |
-| Cost evidence                 | Jakarta-specific runtime cost must be recorded before replacement or continued-operation decisions             |
+| EC2 shape                     | `p5.4xlarge` — 16 P-family vCPUs and one H100                                                                  |
+| Cost evidence                 | Must be refreshed for the selected region before apply or continued-operation decisions                        |
 | Encrypted root volume         | `150 GiB` `gp3`                                                                                                |
-| Pinned AMI                    | `ami-06bc172b9832559df` (`Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04) 20260728`)               |
-| Private placement             | `subnet-06a995e4116d8061b`, `ap-southeast-3a`                                                                  |
+| Pinned AMI                    | Regional copy selected by `activePlacement`                                                                    |
+| Private placement             | Network-owned private subnet resolved in the selected placement AZ                                             |
 | Public IPv4 / SSH             | Disabled                                                                                                       |
 | Tensor parallelism            | `1`                                                                                                            |
 | Inspected engine version      | vLLM `0.26.0` from the digest-pinned image                                                                     |
@@ -76,6 +79,28 @@ this initial deployment.
 | Automatic tool choice         | Enabled                                                                                                        |
 | Tool-call parser              | `qwen3_coder`                                                                                                  |
 | Request tracing               | Disabled until authoritative CarbonForge destination semantics are confirmed                                   |
+
+The candidate placement catalog covers every documented region currently being
+considered for this 16-vCPU, single-H100 shape:
+
+| Placement         | AWS location | P-vCPU quota | Governed network | Selectable now     |
+| ----------------- | ------------ | ------------ | ---------------- | ------------------ |
+| `us-east-1b`      | N. Virginia  | 32           | Ready            | Yes                |
+| `us-east-2a`      | Ohio         | 32           | Ready            | Yes                |
+| `us-west-2a`      | Oregon       | 32           | Missing          | No                 |
+| `ap-northeast-1c` | Tokyo        | 32           | Ready            | No — config needed |
+| `ap-southeast-3a` | Jakarta      | 32           | Ready            | No — config needed |
+| `eu-west-2a`      | London       | Appeal to 32 | Missing          | No                 |
+| `ap-south-1a`     | Mumbai       | Appeal to 32 | Missing          | No                 |
+| `ap-southeast-2b` | Sydney       | Appeal to 32 | Missing          | No                 |
+| `sa-east-1c`      | São Paulo    | Appeal to 32 | Missing          | No                 |
+
+“Selectable now” means the placement passes repository prerequisites and has a
+committed provider-specific stack configuration; it does not guarantee physical
+H100 capacity. A placement without that file fails closed before Pulumi config is
+mutated. Once blocked regions gain the required network, quota, and stack
+configuration, the same `pnpm placement:select <placement-id>` workflow can cycle
+through them without adding another CarbonForge placement definition.
 
 The host baseline is informed by CarbonForge's public AWS Terraform quickstart,
 but adapts it to Jetscale's private-network and secret-handling requirements.
@@ -104,7 +129,10 @@ discovery and a bounded completion, but performance is not yet characterized.
 ```text
 .
 ├── index.ts                  # Pulumi stack wiring and downstream outputs
-├── src/                      # Components, bootstrap, guards, and validation
+├── src/core/                 # Provider-neutral deployment and workload contracts
+├── src/placements/           # Provider placement catalogs and readiness
+├── src/providers/            # Provider-native runtime adapters
+├── src/                      # Shared validation and compatibility exports
 ├── tests/                    # Unit tests for non-provider logic
 ├── scripts/                  # Auth, encrypted secret entry, Pulumi, and smoke tools
 ├── docs/                     # Architecture, security, runtime, and runbooks
@@ -123,11 +151,24 @@ pnpm test
 pnpm format:check
 ```
 
-Preview the intended stack through the authenticated wrapper:
+Select a deployment-ready H100 placement and preview the intended stack through
+the authenticated wrapper:
 
 ```bash
-pnpm pulumi preview -s JetScale/global-carbonforge/live
+pnpm placement:select us-east-2a
+pnpm pulumi preview --diff -s JetScale/global-carbonforge/live-aws-us-east-2a
 ```
+
+`placement:select` targets the placement-specific stack and updates both
+`global-carbonforge:activePlacement` and `aws:region` from the committed AWS
+runtime catalog. Stack names follow
+`<environment>-<cloud>-<provider-location>`; the program rejects mismatches
+between the stack name and configured placement. During preview, CarbonForge
+resolves the selected AZ against `global-cloud-network`'s exported private
+subnets; no physical subnet IDs are maintained here. Currently selectable placements are `us-east-1b` and `us-east-2a`. Other catalog
+entries fail before mutation until their quota, governed-network, and committed
+stack-configuration prerequisites are met. Switching regions replaces regional runtime resources and
+requires a reviewed preview plus explicit live-action authorization.
 
 Run the bounded private-endpoint smoke test against the provisioned runtime from
 an authorized network client:
@@ -153,29 +194,29 @@ Identity Center `global-breakglass-admin` path plus
 
 ## Deployment status and next gates
 
-Pulumi update 16 completed in Jakarta on 2026-08-10. EC2 placement took about 14
-minutes, including 832 seconds to create the `p5.4xlarge`. Updates 17 and 18 could
-not allocate replacement capacity; create-before-delete preserved the running
-instance. Under `INC-002`, the corrected bootstrap was rerun in place through SSM.
-The Docker package conflict and mismatched offline Hugging Face cache path were
-corrected without replacing the host.
+Pulumi update 16 placed the original Jakarta H100 on 2026-08-10. Under `INC-002`,
+an in-place SSM recovery corrected the Docker package conflict and offline Hugging
+Face cache path. Direct verification on 2026-08-11 proved `/v1/models` HTTP 200
+and a bounded chat completion with HTTP 200, 8 completion tokens, zero restarts,
+no OOM, and about 55 GiB of GPU memory in use. That host was subsequently
+destroyed; this remains historical compatibility evidence only.
 
-Direct verification on 2026-08-11 proved `/v1/models` HTTP 200 and a bounded chat
-completion with HTTP 200, 8 completion tokens, and `finish_reason=length`. The
-container remained running with zero restarts, no OOM, and about 55 GiB of GPU
-memory in use. Generated content and secrets were not retained in the evidence.
+After AWS reported insufficient `p5.4xlarge` capacity in N. Virginia, the next
+isolated live configuration targets `us-east-2a` and its regional copy of the
+proven 2026-07-28 DLAMI release. If that AZ also lacks capacity, the attended
+placement workflow can cycle through the other ready candidates. Physical capacity remains
+an apply-time dependency in every region.
 
 The remaining gates are:
 
-1. Record full storage, driver/CUDA, and log-content inspection evidence.
-2. Configure and verify LiteLLM's source-security-group ingress and routing.
-3. Confirm request tracing remains off and logs contain no secret or content
+1. Select a ready placement, review the region-migration preview, and record its
+   current regional cost.
+2. Apply only with explicit authorization, then repeat EC2, SSM, bootstrap,
+   driver/CUDA, storage, and token-generation verification on the new host.
+3. Configure and verify LiteLLM's source-security-group ingress and routing.
+4. Confirm request tracing remains off and logs contain no secret or content
    material.
-4. Configure routine Pulumi Deployments use of the exported deployment role.
-5. Reconcile corrected EC2 user data only when replacement capacity is proven and
-   a replacement is explicitly authorized.
-6. Record Jakarta-specific cost evidence before any replacement, expansion, or
-   continued-operation decision.
+5. Configure routine Pulumi Deployments use of the exported deployment role.
 
 See the [deployment runbook](docs/runbooks/deployment.md) and
 [verification runbook](docs/runbooks/verification.md) for the operational
@@ -183,8 +224,8 @@ sequence.
 
 ## Configuration and outputs
 
-`Pulumi.live.yaml` defines non-secret POC metadata, stack references, and the
-private GHCR mirror coordinates. The pushed mirror was independently inspected
+Each `Pulumi.live-<cloud>-<provider-location>.yaml` defines non-secret POC
+metadata, provider foundation references, and private GHCR mirror coordinates. The pushed mirror was independently inspected
 at GHCR, and `containerDigest` records its registry-reported digest
 `sha256:a3999f60989e47d9059cfedb0999a2342adb41cad1f20999938ac3a8f4f0d5de`.
 `src/container-config.ts` validates the package, release tag, and digest and

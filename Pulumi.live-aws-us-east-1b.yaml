@@ -1,0 +1,37 @@
+config:
+  aws:region: us-east-1
+  global-carbonforge:activePlacement: us-east-1b
+  global-carbonforge:targetAwsAccountId: "728827482753"
+  global-carbonforge:networkStackRef: JetScale/global-cloud-network/live
+  global-carbonforge:identityStackRef: JetScale/global-cloud-identity/live
+  global-carbonforge:containerRepository: ghcr.io/jetscale-ai/carbonforge-eval
+  global-carbonforge:containerTag: v0.1.8-v0.1.3
+  global-carbonforge:instanceType: p5.4xlarge
+  global-carbonforge:gpuCount: "1"
+  global-carbonforge:rootVolumeSizeGiB: "150"
+  global-carbonforge:baseAmiFamily: Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
+
+  global-carbonforge:publicIpv4Enabled: "false"
+  global-carbonforge:sshIngressEnabled: "false"
+  global-carbonforge:modelName: Qwen/Qwen3.5-27B-FP8
+  global-carbonforge:modelRevision: 97f5941bf617e31c5e237364a8602ce3f03a551a
+  global-carbonforge:ghcrUsername: pcuci
+  global-carbonforge:engineVersion: "0.26.0"
+  global-carbonforge:maxModelLength: "32768"
+  global-carbonforge:tensorParallelSize: "1"
+  global-carbonforge:gpuMemoryUtilization: "0.7"
+  global-carbonforge:maxConcurrentSequences: "4"
+  global-carbonforge:runtimePort: "8000"
+  global-carbonforge:scheduler: ltr-promptlen
+  global-carbonforge:trustRemoteCode: "true"
+  global-carbonforge:languageModelOnly: "true"
+  global-carbonforge:reasoningParser: qwen3
+  global-carbonforge:enableAutoToolChoice: "true"
+  global-carbonforge:toolCallParser: qwen3_coder
+  global-carbonforge:requestTraceMode: disabled
+
+  global-carbonforge:containerDigest: sha256:a3999f60989e47d9059cfedb0999a2342adb41cad1f20999938ac3a8f4f0d5de
+
+  # A positive value is required; zero is treated as unset and falls back to
+  # the provider default of 25 attempts. Keep scarce H100 capacity probes fast.
+  aws:maxRetries: "1"

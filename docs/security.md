@@ -2,18 +2,29 @@
 
 ## Account and deployment controls
 
-The sole account target is Global Services AWS account `728827482753`; the live
-stack is deployed in Jakarta (`ap-southeast-3`). The shared launcher uses the
+The sole account target is Global Services AWS account `728827482753`; the next
+live stack targets Ohio (`us-east-2`). The shared launcher uses the
 cached `jetscale` IAM Identity Center session and verifies the account and
 expected SSO role before invoking Pulumi. It removes ambient static AWS
 credentials from child environments.
 
 The Pulumi program independently checks the caller account and ARN. Routine
-updates to `JetScale/global-carbonforge/live` require
-`global-carbonforge-live-pulumi-deployment`. An explicitly authorized manual
+updates to a provider-specific live stack such as
+`JetScale/global-carbonforge/live-aws-us-east-2a` require that stack's role,
+such as `global-carbonforge-live-aws-us-east-2a-pulumi-deployment`. An explicitly authorized manual
 recovery requires both an assumed `global-breakglass-admin` identity and
 `JETSCALE_ALLOW_LOCAL_LIVE_MUTATION=1`; setting an environment variable alone
 cannot authorize an unrelated principal.
+
+## Secret lifecycle
+
+The GHCR credential and CarbonForge licence remain encrypted Pulumi config inputs
+and are copied into stack-owned Secrets Manager resources for runtime retrieval.
+Those AWS secrets use Pulumi-stable logical names, generated AWS physical names
+under project/stack prefixes, and a zero-day recovery window. This avoids name
+collisions with legacy or interrupted deletion tombstones while deliberately
+trading AWS Secrets Manager recovery for deterministic PoC teardown/recreation;
+verify the Pulumi encrypted inputs exist before destroying the stack.
 
 ## Network and administration
 

@@ -39,6 +39,13 @@ test("renders only secret identifiers and the immutable image reference", () => 
   assert.match(script, new RegExp(config.licenseVersionId));
   assert.match(script, new RegExp(config.imageReference));
   assert.doesNotMatch(script, /ghp_|license-plaintext|oauth2accesstoken/);
+  assert.match(script, /umask 077/);
+  assert.ok(
+    script.indexOf("umask 077") < script.indexOf("aws secretsmanager"),
+    "restrictive umask must precede secret materialization",
+  );
+  assert.match(script, /--output text > \/etc\/carbonforge\/ghcr-token/);
+  assert.match(script, /rm -f '\/etc\/carbonforge\/ghcr-token'/);
 });
 
 test("prefetches the pinned model revision and starts offline", () => {

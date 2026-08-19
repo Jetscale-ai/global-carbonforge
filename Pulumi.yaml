@@ -1,7 +1,7 @@
 name: global-carbonforge
 description: >-
-  Private CarbonForge-optimized inference runtime for the Jetscale Global
-  Services AWS account.
+  Private CarbonForge-optimized inference runtimes across provider-native
+  Jetscale cloud foundations.
 runtime:
   name: nodejs
   options:

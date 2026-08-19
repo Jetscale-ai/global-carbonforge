@@ -2,11 +2,17 @@
 
 ## Scope
 
-`global-carbonforge` owns the private H100 compute, inference workload security
-group, runtime bootstrap, health contract, and endpoint outputs for a
-CarbonForge-optimized model runtime. Pulumi update 16 provisioned these resources
-in Jakarta on 2026-08-10. Runtime health and downstream reachability remain
-unverified until the post-deploy checks pass.
+`global-carbonforge` owns provider-specific private H100 compute, workload
+firewall identity, runtime bootstrap, health contract, and endpoint outputs for
+a CarbonForge-optimized model runtime. The provider-neutral layer defines
+placement, workload, and downstream contracts; provider adapters retain native
+network, identity, secret, and administration semantics. AWS is currently the
+only implemented adapter. After insufficient-capacity responses in N. Virginia,
+the next isolated live configuration targets `us-east-2a`; eight additional
+regional candidates are cataloged for attended capacity cycling as their network
+and quota prerequisites permit. The original Jakarta host is destroyed and
+remains historical compatibility evidence. Current runtime health and downstream
+reachability require a successful new deployment and post-deploy verification.
 
 ## Dependency graph
 
@@ -19,6 +25,31 @@ unverified until the post-deploy checks pass.
 
 The program must not create a parallel VPC, duplicate the shared model catalog,
 or read outputs from LiteLLM. The latter avoids a circular dependency.
+
+## Cross-cloud deployment boundary
+
+Deployment stacks use
+`<environment>-<cloud>-<provider-location>`, for example
+`live-aws-us-east-2a`. Each stack owns exactly one provider placement. This
+allows candidate deployments to coexist and be verified independently; changing
+cloud provider never transforms one provider's resources into another's.
+
+The portable workload bootstrap consumes a protected registry-token file and a
+protected licence file. Provider adapters are responsible for securely
+materializing those files with AWS Secrets Manager and an instance role, GCP
+Secret Manager and a service account, or Azure Key Vault and managed identity.
+Only the AWS materialization path exists today. GCP and Azure stack names fail
+closed until their adapters and upstream foundations are implemented.
+
+All adapters must return the same non-secret deployment contract: cloud,
+placement ID, instance ID, private IP, OpenAI base URL, health URL, and provider
+firewall identity. The legacy AWS `securityGroupId` output remains available to
+AWS consumers during migration.
+
+An infrastructure update does not activate a deployment. A separate downstream
+registry or routing owner must promote a full stack reference only after health,
+model discovery, bounded completion, GPU, and LiteLLM connectivity evidence is
+recorded. See the [draft cross-cloud decision](decisions/DR-001-ARCHITECTURE-DRAFT-cross-cloud-runtime-deployments.md).
 
 ## Intended network boundary
 
@@ -53,13 +84,20 @@ token rather than the temporary vendor source credential.
 ## Vendor-informed host baseline
 
 CarbonForge's public AWS Terraform sample confirms `p5.4xlarge` as its minimal
-one-H100 client host, an NVIDIA Deep Learning AMI family, and a 150 GiB encrypted
-root volume. The applied regional deployment pins Jakarta AMI
-`ami-06bc172b9832559df` and private subnet `subnet-06a995e4116d8061b` in
-`ap-southeast-3a`. The effective Jakarta Running On-Demand P-instance quota is 32
-vCPUs, and the 16-vCPU `p5.4xlarge` was placed successfully. That launch does not
-guarantee future replacement capacity. Jakarta-specific cost evidence remains
-required for lifecycle decisions.
+one-H100 client host. The shape consumes 16 P-family vCPUs and uses an NVIDIA
+Deep Learning AMI with a 150 GiB encrypted root volume. The active placement
+selects a pinned regional copy of the proven 2026-07-28 release and resolves a
+private subnet from `global-cloud-network`.
+
+The runtime catalog can target N. Virginia (`us-east-1b`), Ohio
+(`us-east-2a`), Oregon (`us-west-2a`), Tokyo (`ap-northeast-1c`), Jakarta
+(`ap-southeast-3a`), London (`eu-west-2a`), Mumbai (`ap-south-1a`), Sydney
+(`ap-southeast-2b`), and São Paulo (`sa-east-1c`). N. Virginia, Ohio, Tokyo, and
+Jakarta currently have both a 32-vCPU quota and a governed network. Oregon has
+quota but needs network expansion. The remaining four need both their
+quota appeals and network expansion completed. Offering and quota evidence do
+not guarantee physical H100 capacity at launch; regional cost evidence remains
+required.
 
 The sample is intentionally minimal and public-facing. This architecture does
 not adopt its default VPC, public IPv4, SSH key, CIDR ingress, user-data secrets,
@@ -69,12 +107,14 @@ analysis is in
 
 ## Downstream output contract
 
-The stack exports the narrow non-secret contract LiteLLM needs:
+Each deployment stack exports the narrow non-secret contract LiteLLM needs:
 
+- `cloud` and `placementId`: immutable deployment coordinates;
 - `openAiBaseUrl`: private OpenAI-compatible base URL;
 - `healthUrl`: private health endpoint;
 - `modelName` and `modelRevision`: pinned serving-model identity;
-- `securityGroupId`: workload security group for consumer ingress rules; and
+- `firewallIdentity`: provider-native workload firewall identity;
+- `securityGroupId`: transitional AWS security-group identity; and
 - `instanceId`: operational identity for SSM and alarms.
 
 The applied stack reports concrete endpoint and resource outputs while retaining
@@ -87,7 +127,8 @@ verification succeeds.
 
 `global-cloud-identity` owns the Pulumi Cloud OIDC provider. This stack creates
 its own stack-scoped Pulumi Deployments role trusted only for
-`pulumi:deploy:org:JetScale:project:global-carbonforge:stack:live:*`. It does not
+the exact provider-specific stack, for example
+`pulumi:deploy:org:JetScale:project:global-carbonforge:stack:live-aws-us-east-2a:*`. It does not
 own or change the central OIDC anchor. IAM and Secrets Manager permissions are
 name/account scoped; EC2 launch and describe permissions retain AWS-required
 wildcard resources.

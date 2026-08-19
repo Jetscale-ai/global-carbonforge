@@ -13,7 +13,7 @@ Use the repository scripts for the expected minimum validation surface:
 pnpm install
 pnpm build
 pnpm test
-pnpm pulumi preview -s JetScale/global-carbonforge/live
+pnpm pulumi preview -s JetScale/global-carbonforge/live-aws-us-east-2a
 ```
 
 Do not claim these commands pass until the project and scripts exist and the
@@ -134,8 +134,10 @@ values.
 
 ## 7. Post-Deploy Evidence
 
-The Jakarta infrastructure is provisioned. Collect all of the following before
-calling the runtime healthy, without exposing secrets or prompt content:
+Historical token-generation evidence from a destroyed host does not establish
+current availability. After each successful instance creation, collect all of
+the following before calling the runtime healthy, without exposing secrets or
+prompt content:
 
 1. The EC2 instance reaches the running and status-check-passed states.
 2. The supervised CarbonForge service is healthy.

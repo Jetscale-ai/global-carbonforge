@@ -3,7 +3,11 @@
 # Omitting each value makes Pulumi prompt interactively without shell arguments.
 set -euo pipefail
 
-STACK="${1:-JetScale/global-carbonforge/live}"
+STACK="${1:-}"
+if [[ -z "${STACK}" ]]; then
+  echo "Usage: pnpm secrets:configure -- JetScale/global-carbonforge/live-<cloud>-<provider-location>" >&2
+  exit 2
+fi
 
 echo "Enter a least-privilege GHCR token with read:packages when prompted."
 pulumi config set ghcrPullToken --secret --stack "${STACK}"

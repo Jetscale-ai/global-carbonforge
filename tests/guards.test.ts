@@ -32,10 +32,23 @@ test("allows live mutation through the stack deployment role", () => {
   assert.equal(
     authorizeRuntimeIdentity({
       ...baseInput,
-      arn: "arn:aws:sts::728827482753:assumed-role/global-carbonforge-live-pulumi-deployment/pulumi-deployment",
+      stack: "live-aws-us-east-1b",
+      arn: "arn:aws:sts::728827482753:assumed-role/global-carbonforge-live-aws-us-east-1b-pulumi-deployment/pulumi-deployment",
       isDryRun: false,
     }),
     "allow",
+  );
+});
+
+test("does not let provider-specific live stacks bypass mutation controls", () => {
+  assert.throws(
+    () =>
+      authorizeRuntimeIdentity({
+        ...baseInput,
+        stack: "live-aws-us-east-1b",
+        isDryRun: false,
+      }),
+    /require the stack deployment role/,
   );
 });
 

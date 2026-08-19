@@ -1,10 +1,12 @@
 # Verification runbook
 
-The Jakarta infrastructure is provisioned, and direct model discovery and token
-generation were verified on 2026-08-11. Storage, driver/CUDA, telemetry, and
-LiteLLM handoff evidence remain open. Do not place credentials, licence values,
-prompts containing sensitive data, or generated user content in verification
-logs or tickets.
+Direct model discovery and token generation were verified on the original
+Jakarta H100 on 2026-08-11. That host was subsequently destroyed; the historical
+evidence proves runtime compatibility but does not describe current
+availability. Repeat every check below after a replacement H100 is provisioned.
+Storage, driver/CUDA, telemetry, and LiteLLM handoff evidence remain open. Do not
+place credentials, licence values, prompts containing sensitive data, or
+generated user content in verification logs or tickets.
 
 ## Infrastructure checks
 

@@ -1,6 +1,8 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 
+import { isLiveDeploymentStack } from "./core/deployment";
+
 export type RuntimeIdentityDecision = "allow" | "allow-breakglass";
 
 export type RuntimeIdentityInput = {
@@ -28,7 +30,7 @@ export function authorizeRuntimeIdentity({
     );
   }
 
-  if (stack !== "live" || isDryRun) {
+  if (!isLiveDeploymentStack(stack) || isDryRun) {
     return "allow";
   }
 

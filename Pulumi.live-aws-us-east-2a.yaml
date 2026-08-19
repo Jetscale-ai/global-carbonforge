@@ -1,5 +1,6 @@
 config:
-  aws:region: ap-southeast-3
+  aws:region: us-east-2
+  global-carbonforge:activePlacement: us-east-2a
   global-carbonforge:targetAwsAccountId: "728827482753"
   global-carbonforge:networkStackRef: JetScale/global-cloud-network/live
   global-carbonforge:identityStackRef: JetScale/global-cloud-identity/live
@@ -9,9 +10,7 @@ config:
   global-carbonforge:gpuCount: "1"
   global-carbonforge:rootVolumeSizeGiB: "150"
   global-carbonforge:baseAmiFamily: Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
-  global-carbonforge:amiId: ami-06bc172b9832559df
-  global-carbonforge:availabilityZone: ap-southeast-3a
-  global-carbonforge:subnetId: subnet-06a995e4116d8061b
+
   global-carbonforge:publicIpv4Enabled: "false"
   global-carbonforge:sshIngressEnabled: "false"
   global-carbonforge:modelName: Qwen/Qwen3.5-27B-FP8
@@ -30,11 +29,9 @@ config:
   global-carbonforge:enableAutoToolChoice: "true"
   global-carbonforge:toolCallParser: qwen3_coder
   global-carbonforge:requestTraceMode: disabled
-  global-carbonforge:carbonforgeLicenseKey:
-    secure: AAABAI98jwp4pK4MMT3PoAx4IiuRVyICrwp4kTiAbpmEom2ZZrH8tNby3iDeSvxPXC9eoOwgPLUjDPcOGeLIuBMHgYe0dJZCwQfbucXUNouKwwzW90mcmpVonOF5ZA7oq9ntQfCr40jcubbJiNziSST8FrrRiBmEzMhuafz1sBiS/Qc0dggn/fJxGWbXCcChfgNjpLwQSnllgIVmwsaUozMPLwbLzDar86eLlibQwisKXfkDKaucfDhnVPm8SBE2BIorO4J9xnKKAzgKrGIx//J14SRp6N3CYp0h4Hptne3Li435
+
   global-carbonforge:containerDigest: sha256:a3999f60989e47d9059cfedb0999a2342adb41cad1f20999938ac3a8f4f0d5de
-  global-carbonforge:ghcrPullToken:
-    secure: AAABAO9/kNGrZnp4mHy28igvo2jqCMdQohRY8RVDvLweN1R/f6mZqe/JQF3m1cnkQYRWcO1rTRK0kgT6BFmVCbZ6TC1FM+P6
+
   # A positive value is required; zero is treated as unset and falls back to
   # the provider default of 25 attempts. Keep scarce H100 capacity probes fast.
   aws:maxRetries: "1"

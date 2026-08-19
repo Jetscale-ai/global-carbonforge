@@ -110,8 +110,8 @@ evidence rather than being substituted for the verified GHCR manifest digest.
 
 The command shape and option registrations are validated from the pinned image,
 but a GPU-free workstation cannot initialize vLLM's complete CLI parser because
-vLLM requires a detected device while constructing defaults. The Jakarta host is
-provisioned; verify:
+vLLM requires a detected device while constructing defaults. After the new
+`us-east-1` host is provisioned, verify:
 
 1. the pinned AMI driver satisfies the image's CUDA 13 compatibility contract;
 2. the H100 loads the pinned model at the configured context and memory fraction;

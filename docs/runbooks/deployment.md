@@ -2,56 +2,119 @@
 
 ## Current deployment
 
-Pulumi update 16 provisioned the private Jakarta runtime infrastructure on
-2026-08-10. The update created a `p5.4xlarge` after 832 seconds and completed in
-14 minutes 7 seconds. This is placement evidence, not runtime-health evidence.
-Use the verification runbook before routing traffic.
+Pulumi update 16 provisioned the original private Jakarta `p5.4xlarge` on
+2026-08-10. Under `INC-002`, its failed cloud-init was corrected and rerun in
+place through SSM. Model discovery and token generation then succeeded, providing
+historical proof that the pinned image, model, licence, and H100 can operate
+together.
 
-Pulumi update 17 attempted a create-before-delete replacement for the bootstrap
-correction. The existing instance remained running, but the replacement failed
-with `InsufficientInstanceCapacity` after the AWS provider made 25 attempts over
-about 50 minutes. Update 18 used the corrected retry bound and failed for the same
-capacity reason in 8 seconds. Jakarta currently offers `p5.4xlarge` only in
-`ap-southeast-3a`, so there is no alternate regional AZ for this shape.
+That original instance was subsequently destroyed. Updates 20 through 26 rebuilt
+supporting resources, but Jakarta repeatedly returned
+`InsufficientInstanceCapacity` for a new `p5.4xlarge`. Updates 27 and 28 then
+successfully destroyed the stack. Subsequent N. Virginia attempts reported
+insufficient `p5.4xlarge` capacity, leaving no runtime endpoint. The next isolated
+live stack targets the shared private subnet in `us-east-2a`; Ohio's approved
+regional P-instance quota is 32 vCPUs.
 
-The stack now sets `aws:maxRetries: "1"`. A value of `0` was treated as unset and
+The stack sets `aws:maxRetries: "1"`. A value of `0` was treated as unset and
 fell back to the provider default of 25 attempts. The ineffective
 `customTimeouts.create: 3m` option was removed because it did not interrupt the
 provider's internal `RunInstances` retry loop. A failed capacity probe should
-now return quickly; it does not make physical H100 capacity available.
+return quickly; it does not make physical H100 capacity available. `us-east-2`
+advertises `p5.4xlarge` in `us-east-2a`; this still does not guarantee physical
+placement.
 
-The initial host's cloud-init failed before secret retrieval because the pinned
-DLAMI already provides Docker CE, Compose, and `containerd.io`, while bootstrap
-also requested Ubuntu's conflicting `docker.io` package. Bootstrap now installs
-only general utilities and verifies the AMI-provided Docker and Compose binaries.
-Because `userDataReplaceOnChange` is enabled, applying this correction proposes
-an instance replacement. Pulumi uses create-before-delete, preserving the running
-host when replacement capacity is unavailable. Under `INC-002`, the stored
-cloud-init script was corrected and rerun in place through SSM so the allocated
-H100 could be retained. Runtime startup then exposed a second issue: prefetch used
+The original cloud-init failed before secret retrieval because the pinned DLAMI
+already provides Docker CE, Compose, and `containerd.io`, while bootstrap also
+requested Ubuntu's conflicting `docker.io` package. Bootstrap now installs only
+general utilities and verifies the AMI-provided Docker and Compose binaries.
+Runtime startup exposed a second issue: prefetch used
 `/root/.cache/huggingface`, while offline vLLM defaulted to its `hub` subdirectory.
-The Compose environment now sets `HUGGINGFACE_HUB_CACHE` to the prefetch path.
+The generated Compose environment now sets `HUGGINGFACE_HUB_CACHE` to the
+prefetch path and enables offline mode. Both runtime corrections are in generated
+user data and will apply to the next host without an SSM repair.
 
-This recovery made the existing service operational but did not change the EC2
-resource's recorded user data. Pulumi therefore still proposes replacement to
-reconcile state. Do not apply or target-delete the instance until replacement
-capacity is demonstrated and the replacement is explicitly authorized.
+## Reproducibility contract
+
+A successful full Pulumi destroy followed by an up recreates every
+CarbonForge-owned resource from this repository and encrypted stack
+configuration. It does not require an existing CarbonForge instance, retained
+AWS secret, manual import, or SSM bootstrap repair. Pulumi creates the deployment
+role, instance role and profile, security group, AWS secret containers and
+versions, EC2 instance, generated bootstrap, and non-secret outputs.
+
+This contract intentionally retains two upstream stack dependencies:
+`JetScale/global-cloud-network/live` supplies the shared VPC and private subnet,
+and `JetScale/global-cloud-identity/live` supplies the account OIDC trust anchor.
+Duplicating either resource here would violate its ownership boundary. A fresh
+apply also depends on external availability rather than prior CarbonForge state:
+AWS H100 capacity, NAT/DNS egress, the pinned AMI, GHCR, Hugging Face, and valid
+encrypted credential and licence inputs.
+
+## Regional placement catalog
+
+`src/placements/aws.ts` binds each AWS placement ID to runtime-owned policy: a
+region, AZ, pinned regional DLAMI, and quota status. It deliberately contains no
+physical VPC or subnet IDs.
+Operators select one coherent placement with:
+
+```bash
+pnpm placement:select us-east-2a
+pnpm pulumi preview --diff -s JetScale/global-carbonforge/live-aws-us-east-2a
+```
+
+The selector targets `JetScale/global-carbonforge/live-aws-us-east-2a` and
+updates `global-carbonforge:activePlacement` and `aws:region`. The program
+independently rejects drift between stack name, cloud, placement, and region. During preview, it intersects the subnets in the selected AZ and
+VPC with `global-cloud-network`'s exported private-subnet IDs and requires
+exactly one match. It also rejects public IPv4 auto-assignment. This makes the
+network stack authoritative and allows subnet replacement without changing the
+CarbonForge catalog.
+
+Each candidate targets one `p5.4xlarge`: 16 P-family vCPUs and one H100.
+
+| Placement         | AWS location | P-vCPU quota | Network | Activation    |
+| ----------------- | ------------ | ------------ | ------- | ------------- |
+| `us-east-1b`      | N. Virginia  | 32           | Ready   | Ready         |
+| `us-east-2a`      | Ohio         | 32           | Ready   | Ready         |
+| `us-west-2a`      | Oregon       | 32           | Missing | Blocked       |
+| `ap-northeast-1c` | Tokyo        | 32           | Ready   | Config needed |
+| `ap-southeast-3a` | Jakarta      | 32           | Ready   | Config needed |
+| `eu-west-2a`      | London       | Appeal to 32 | Missing | Blocked       |
+| `ap-south-1a`     | Mumbai       | Appeal to 32 | Missing | Blocked       |
+| `ap-southeast-2b` | Sydney       | Appeal to 32 | Missing | Blocked       |
+| `sa-east-1c`      | São Paulo    | Appeal to 32 | Missing | Blocked       |
+
+The five missing regional networks must be added by `global-cloud-network`, not
+this stack. A quota- and network-ready placement also requires a committed
+provider-specific stack configuration before the selector permits activation. That expansion would add regional infrastructure including standing
+NAT gateway cost and requires a separate reviewed and approved change. Quota and
+instance-type offering do not guarantee physical H100 capacity.
+
+Each placement has an isolated stack. Selecting another placement creates or
+updates that placement's stack rather than replacing a different deployment.
+Global IAM resources retain the default Pulumi provider identity within each
+stack. Never automate unattended cross-region apply
+retries: select a placement, review the exact preview, and obtain explicit
+authorization for each live mutation.
 
 ## Preconditions for future mutations
 
-Before any replacement, expansion, or redeployment, confirm Jakarta's effective
-Running On-Demand P-instance quota remains 32 vCPUs, recheck `p5.4xlarge`
-offering and physical-capacity risk, record current Jakarta cost, review the
-preview, and obtain explicit live-action authorization.
+Before any replacement, expansion, or redeployment, confirm the selected
+region's effective Running On-Demand P-instance quota can admit a 16-vCPU
+`p5.4xlarge`, recheck its AZ offering and physical-capacity risk, record current
+regional cost, review the preview, and obtain explicit live-action
+authorization.
 
 Verify that:
 
 - the effective regional P-instance quota, not only a request status, is 32
   vCPUs so one active 16-vCPU host retains replacement headroom;
-- `p5.4xlarge` remains offered in `ap-southeast-3a`; it is currently the only
-  Jakarta AZ advertising this shape, and physical capacity is still an
-  apply-time dependency unless a separately approved reservation exists;
-- the target is `JetScale/global-carbonforge/live` in account `728827482753`;
+- `p5.4xlarge` remains offered in the selected placement AZ; physical capacity
+  is still an apply-time dependency unless a separately approved reservation
+  exists;
+- the target follows `JetScale/global-carbonforge/live-aws-<placement>` and the
+  stack suffix matches `activePlacement` in account `728827482753`;
 - a least-privilege `ghcrPullToken` and the reissued CarbonForge licence have
   been entered interactively with `pnpm secrets:configure`, and `pulumi config`
   reports both keys as secret without using `--show-secrets`;
@@ -67,11 +130,17 @@ Verify that:
   as the non-null immutable reference;
 - model revision `97f5941bf617e31c5e237364a8602ce3f03a551a`, licence use,
   and Pulumi/AWS Secrets Manager handling are reviewed;
+- stack-owned Secrets Manager resources use Pulumi-stable logical names,
+  generated AWS physical names under project/stack prefixes, and a zero-day
+  recovery window. A recreate therefore does not collide with a legacy or
+  interrupted AWS deletion tombstone. Destroy permanently deletes current AWS
+  copies immediately; confirm the Pulumi encrypted config still contains both
+  source values before destruction;
 - the [runtime invocation](../runtime-invocation.md) explicitly overrides the
   pinned image's dry-run Qwen2.5 default with the reviewed Qwen3.5 command;
-- the pinned AMI is `ami-06bc172b9832559df` in private subnet
-  `subnet-06a995e4116d8061b` (`ap-southeast-3a`), and its driver is confirmed compatible
-  with the image's CUDA 13 requirement;
+- the pinned AMI is `ami-095f757d9450363f1` in `us-east-2a`, and the dynamically
+  resolved private subnet is exported by `global-cloud-network`; its driver is
+  confirmed compatible with the image's CUDA 13 requirement;
 - the subnet retains active NAT egress for AWS APIs, GHCR, NVIDIA package setup,
   and the public Hugging Face model download; VPC DNS and NACL behavior are
   rechecked immediately before mutation;
@@ -87,8 +156,8 @@ Query the effective quota and current instance-type offering through the shared
 read-only IAM Identity Center preflight client:
 
 ```bash
-pnpm --dir ../security-governance jetscale-preflight -- exec --provider aws --account global-services --access readonly -- aws service-quotas get-service-quota --service-code ec2 --quota-code L-417A185B --region ap-southeast-3
-pnpm --dir ../security-governance jetscale-preflight -- exec --provider aws --account global-services --access readonly -- aws ec2 describe-instance-type-offerings --region ap-southeast-3 --location-type availability-zone --filters Name=instance-type,Values=p5.4xlarge Name=location,Values=ap-southeast-3a
+pnpm --dir ../security-governance jetscale-preflight -- exec --provider aws --account global-services --access readonly -- aws service-quotas get-service-quota --service-code ec2 --quota-code L-417A185B --region us-east-2
+pnpm --dir ../security-governance jetscale-preflight -- exec --provider aws --account global-services --access readonly -- aws ec2 describe-instance-type-offerings --region us-east-2 --location-type availability-zone --filters Name=instance-type,Values=p5.4xlarge Name=location,Values=us-east-2a
 ```
 
 Confirm the effective quota is 32. An offering result validates the configuration
@@ -104,7 +173,7 @@ pnpm install
 pnpm build
 pnpm test
 pnpm format:check
-pnpm pulumi preview --diff -s JetScale/global-carbonforge/live
+pnpm pulumi preview --diff -s JetScale/global-carbonforge/live-aws-us-east-2a
 ```
 
 The shared wrapper authenticates with the cached `jetscale` IAM Identity Center
@@ -113,9 +182,9 @@ previews but blocks local live mutations by default. If authentication has
 expired, run `aws sso login --sso-session jetscale` and retry.
 
 `aws:maxRetries: "1"` bounds AWS API attempts; do not set it to `0`, which falls
-back to the provider default. Because an instance now exists, review every
-preview for replacement or deletion of `carbonforge-instance`, secret versions,
-security groups, and regional resources. Treat an instance replacement as a
+back to the provider default. Review every preview for creation, replacement, or
+deletion of `carbonforge-instance`, secret versions, security groups, and
+regional resources. When an instance exists, treat its replacement as a
 capacity-loss and service-interruption risk even when Pulumi proposes
 create-before-delete.
 

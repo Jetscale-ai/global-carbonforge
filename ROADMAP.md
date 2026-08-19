@@ -7,23 +7,29 @@ approval.
 
 ## Current delivery state
 
-Pulumi update 16 provisioned the private `p5.4xlarge` and supporting resources in
-`ap-southeast-3a` on 2026-08-10. Updates 17 and 18 found no replacement capacity,
-so the allocated H100 was retained. An `INC-002` in-place SSM recovery corrected
-the Docker bootstrap conflict and offline model-cache path. On 2026-08-11, direct
-model discovery and an 8-token OpenAI-compatible completion both returned HTTP
-200 without a container restart or OOM.
+Pulumi update 16 provisioned the original Jakarta `p5.4xlarge` on 2026-08-10. An
+`INC-002` in-place SSM recovery corrected the Docker bootstrap conflict and
+offline model-cache path. On 2026-08-11, direct model discovery and an 8-token
+OpenAI-compatible completion both returned HTTP 200 without a container restart
+or OOM. That host was subsequently destroyed after repeated Jakarta replacement
+capacity failures.
+
+The live stacks currently have no H100. AWS reported insufficient `p5.4xlarge`
+capacity in N. Virginia, so the next isolated stack targets `us-east-2a`. The
+placement catalog also covers Oregon, Tokyo, Jakarta, London, Mumbai, Sydney, and
+São Paulo. Each candidate is a 16-P-vCPU, single-H100 `p5.4xlarge`. N. Virginia,
+Ohio, Tokyo, and Jakarta currently satisfy quota and network prerequisites; the
+other candidates remain blocked by network expansion, quota appeals, or both.
 
 The critical path is now:
 
-1. Complete storage, driver/CUDA, and telemetry evidence for the recovered host.
-2. Configure LiteLLM's source-security-group ingress and validate end-to-end
+1. Select a ready candidate, review its region-migration preview, and record
+   current regional cost.
+2. Apply with explicit authorization and repeat complete host, bootstrap, and
+   token-generation verification.
+3. Configure LiteLLM's source-security-group ingress and validate end-to-end
    routing.
-3. Configure routine Pulumi Deployments use of the stack-owned deployment role.
-4. Reconcile corrected user data only after replacement capacity is demonstrated
-   and replacement is explicitly authorized.
-5. Record Jakarta-specific cost and lifecycle evidence before continued operation
-   or replacement.
+4. Configure routine Pulumi Deployments use of the stack-owned deployment role.
 
 The direct check proves bounded token serving, not future replacement capacity,
 downstream reachability, performance, availability, or benchmark claims.
@@ -58,18 +64,19 @@ independently inspected GHCR digest.
 
 ## Phase 1 — Capacity, cost, and vendor validation
 
-**Status:** Capacity and P-instance quota gate passed for the initial Jakarta
-launch; lifecycle cost and replacement-capacity evidence remain open.
+**Status:** Four cataloged placements satisfy quota and network gates; lifecycle
+cost and physical-capacity evidence remain open.
 
-Image provenance, mirroring/licence authorization, digest pinning, concrete
-AMI/subnet placement, and runtime launch-path validation are complete. Jakarta's
-effective Running On-Demand P-instance quota is 32 vCPUs, and one 16-vCPU
-`p5.4xlarge` was placed successfully in `ap-southeast-3a`.
+Image provenance, mirroring/licence authorization, digest pinning, and runtime
+launch-path validation are complete. N. Virginia, Ohio, Tokyo, and Jakarta have
+32-vCPU Running On-Demand P-instance quotas and governed private networks. Oregon
+has quota but needs network expansion. London, Mumbai, Sydney, and São Paulo need
+both quota appeals and network expansion.
 
 - Preserve at least 32 Running On-Demand P-instance vCPUs for active capacity and
   replacement headroom; recheck physical capacity before any replacement.
-- Record current Jakarta On-Demand cost before continued-operation, replacement,
-  or expansion decisions.
+- Record current On-Demand cost in the selected region before apply, continued
+  operation, replacement, or expansion decisions.
 - Preserve the confirmed CarbonForge authorization to mirror and operate the
   proprietary evaluation image from Jetscale's private GHCR package for the PoC.
 - Preserve the verified source and GHCR image provenance evidence.
@@ -81,8 +88,8 @@ effective Running On-Demand P-instance quota is 32 vCPUs, and one 16-vCPU
   current AWS capacity and compatibility. A pinned-revision Hub dry run measured
   roughly 33.7 GB of model files, leaving practical PoC headroom on the 150 GiB
   root volume alongside the roughly 19 GB image; verify free space after boot.
-- Pinned Jakarta AMI `ami-06bc172b9832559df`, the regional copy of the
-  2026-07-28 Ubuntu 22.04 NVIDIA-driver Deep Learning Base OSS AMI.
+- Pin a regional copy of the proven 2026-07-28 Ubuntu 22.04 NVIDIA-driver Deep
+  Learning Base OSS AMI for every cataloged placement.
 - Define model provenance and the relationship to `global-inference-models`.
 
 **Exit gate:** human-approved cost/capacity evidence and a reviewed technical
@@ -90,8 +97,8 @@ runbook. No rolling container tags are acceptable.
 
 ## Phase 2 — Private H100 compute
 
-**Status:** Applied in Jakarta by Pulumi update 16; infrastructure verification
-is in progress.
+**Status:** Historical Jakarta deployment proven; `us-east-1` replacement is
+configured but not yet applied.
 
 - Added a private H100 instance in the existing VPC and selected private subnet.
 - Added a least-privilege instance profile, encrypted storage, IMDSv2, detailed
@@ -160,7 +167,30 @@ the CarbonForge StackReference, create TCP `8000` ingress on the exported runtim
 security group from its ECS task security group, register the pinned model, and
 pass a sanitized completion test.
 
-## Phase 6 — Benchmark and decision evidence
+## Phase 6 — Cross-cloud deployment adapters
+
+**Status:** Provider-neutral contracts and AWS adapter extraction implemented;
+GCP and Azure foundations and adapters remain unimplemented.
+
+- Accept or revise
+  [DR-001](docs/decisions/DR-001-ARCHITECTURE-DRAFT-cross-cloud-runtime-deployments.md)
+  after affected-repository review.
+- Define provider-owned network, identity, secret, administration, account, and
+  cost contracts for GCP and Azure.
+- Validate CarbonForge licence, digest-pinned container, model, image, driver,
+  and Docker compatibility on each provider before catalog activation.
+- Implement GCP and Azure adapters that return the normalized non-secret runtime
+  contract and preserve private-only access.
+- Keep one isolated stack per environment, cloud, and provider location.
+- Implement a verified deployment registry outside compute stacks; promotion
+  requires health, completion, GPU, and LiteLLM connectivity evidence.
+
+**Exit gate:** provider foundation review, non-destructive preview, explicit cost
+and capacity authorization, secret-safe bootstrap evidence, and successful
+provider-local verification. Neither a quota nor a successful Pulumi update is
+sufficient to activate routing.
+
+## Phase 7 — Benchmark and decision evidence
 
 - Establish a representative coding, agentic, and software workload suite.
 - Measure baseline and CarbonForge variants with methodology, hardware,
@@ -171,7 +201,7 @@ pass a sanitized completion test.
 **Exit gate:** reviewable benchmark report and a decision on continued
 investment, expansion, or shutdown.
 
-## Phase 7 — Production hardening and lifecycle
+## Phase 8 — Production hardening and lifecycle
 
 - Define availability targets, patching, incident response, backup/recovery,
   and capacity lifecycle controls.

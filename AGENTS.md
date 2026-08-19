@@ -5,8 +5,9 @@
 **Version:** 0.1.0  
 **Risk Level:** High  
 **Owner:** JetScale Global Services Platform  
-**Deploy Target:** Global Services AWS account (`728827482753`), Pulumi stack
-`JetScale/global-carbonforge/live`, deployed region `ap-southeast-3`
+**Deploy Target:** Provider-specific Pulumi stacks named
+`JetScale/global-carbonforge/live-<cloud>-<provider-location>`; the implemented
+AWS adapter targets Global Services account (`728827482753`)
 **Management Source:** `../governance/`
 
 ## 0. Situational Awareness
@@ -81,7 +82,8 @@ The selected bundles are:
 
 ## 2. Deployment and Mutation Rules
 
-- The live stack is `JetScale/global-carbonforge/live`.
+- Live stacks are named
+  `JetScale/global-carbonforge/live-<cloud>-<provider-location>`.
 - The target account is Global Services (`728827482753`).
 - The Pulumi program must reject credentials for any other AWS account.
 - Routine live mutations must run through Pulumi Deployments using a

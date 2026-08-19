@@ -1,13 +1,20 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 
-import { CarbonForgeRuntime } from "./src/carbonforge-runtime";
+import {
+  assertPlacementMatchesStack,
+  type Placement,
+} from "./src/core/placement";
+import { parseDeploymentStackName } from "./src/core/deployment";
 import { validateContainerConfig } from "./src/container-config";
-import { DeploymentRole } from "./src/deployment-role";
+import { DeploymentRole } from "./src/providers/aws/deployment-role";
+import { CarbonForgeRuntime } from "./src/providers/aws/runtime";
 import { enforceRuntimeIdentity } from "./src/guards";
 import { validateHostConfig } from "./src/host-config";
+import { selectRegionalPlacement } from "./src/placements/aws";
 import { validateRuntimeConfig } from "./src/runtime-config";
 import { getRuntimeSecrets } from "./src/secret-config";
+import { selectPrivateSubnetId } from "./src/subnet-selection";
 import {
   getGlobalCloudIdentityOutputs,
   getGlobalCloudNetworkOutputs,
@@ -16,6 +23,13 @@ import {
 const cfg = new pulumi.Config();
 const project = pulumi.getProject();
 const stack = pulumi.getStack();
+const stackCoordinates = parseDeploymentStackName(stack);
+if (stackCoordinates.cloud !== "aws") {
+  throw new Error(
+    `Cloud provider ${stackCoordinates.cloud} is not implemented yet. AWS remains the only deployable adapter.`,
+  );
+}
+
 const targetAwsAccountId = cfg.require("targetAwsAccountId");
 const runtimeSecrets = getRuntimeSecrets(cfg);
 
@@ -54,19 +68,49 @@ const runtime = validateRuntimeConfig({
 
 enforceRuntimeIdentity(targetAwsAccountId, project, stack);
 
-const region = aws.config.region ?? "us-east-1";
+const placement = selectRegionalPlacement(cfg.require("activePlacement"));
+assertPlacementMatchesStack(
+  placement as Placement,
+  stackCoordinates.cloud,
+  stackCoordinates.placementId,
+);
+const region = aws.config.region;
+if (!region) {
+  throw new Error(
+    `aws:region must match activePlacement ${placement.id} (${placement.region}). Run pnpm placement:select ${placement.id}.`,
+  );
+}
+if (region !== placement.region) {
+  throw new Error(
+    `aws:region ${region} does not match activePlacement ${placement.id} (${placement.region}). Run pnpm placement:select ${placement.id}.`,
+  );
+}
 const network = getGlobalCloudNetworkOutputs(
   cfg.require("networkStackRef"),
   region,
 );
 const identity = getGlobalCloudIdentityOutputs(cfg.require("identityStackRef"));
-const subnetId = cfg.require("subnetId");
-const availabilityZone = cfg.require("availabilityZone");
+const availabilityZone = placement.availabilityZone;
+const subnetsInPlacementAz = aws.ec2.getSubnetsOutput({
+  filters: [
+    { name: "availability-zone", values: [availabilityZone] },
+    { name: "vpc-id", values: [network.vpcId] },
+  ],
+});
+const subnetId = pulumi
+  .all([network.privateSubnetIds, subnetsInPlacementAz.ids])
+  .apply(([privateSubnetIds, subnetIdsInAz]) =>
+    selectPrivateSubnetId(
+      privateSubnetIds,
+      subnetIdsInAz,
+      placement.id,
+      availabilityZone,
+    ),
+  );
 const selectedSubnet = aws.ec2.getSubnetOutput({ id: subnetId });
 
 pulumi
   .all([
-    network.privateSubnetIds,
     network.vpcId,
     selectedSubnet.vpcId,
     selectedSubnet.availabilityZone,
@@ -74,28 +118,22 @@ pulumi
   ])
   .apply(
     ([
-      privateSubnetIds,
       expectedVpcId,
       actualVpcId,
       actualAvailabilityZone,
       mapPublicIpOnLaunch,
     ]) => {
-      if (!privateSubnetIds.includes(subnetId)) {
-        throw new Error(
-          `subnetId ${subnetId} is not exported by the configured network stack.`,
-        );
-      }
       if (actualVpcId !== expectedVpcId) {
-        throw new Error(`subnetId ${subnetId} is not in VPC ${expectedVpcId}.`);
+        throw new Error(`Selected subnet is not in VPC ${expectedVpcId}.`);
       }
       if (actualAvailabilityZone !== availabilityZone) {
         throw new Error(
-          `subnetId ${subnetId} is in ${actualAvailabilityZone}, not ${availabilityZone}.`,
+          `Selected subnet is in ${actualAvailabilityZone}, not ${availabilityZone}.`,
         );
       }
       if (mapPublicIpOnLaunch) {
         throw new Error(
-          `subnetId ${subnetId} must not auto-assign public IPv4.`,
+          "Selected private subnet must not auto-assign public IPv4.",
         );
       }
     },
@@ -108,7 +146,7 @@ if (!container.immutableReference) {
 }
 
 const runtimeService = new CarbonForgeRuntime("carbonforge", {
-  amiId: cfg.require("amiId"),
+  amiId: placement.amiId,
   availabilityZone,
   ghcrPullToken: runtimeSecrets.ghcrPullToken,
   ghcrUsername: cfg.require("ghcrUsername"),
@@ -142,9 +180,12 @@ const deploymentRole = new DeploymentRole("pulumi-deployment", {
 });
 
 export const stackIdentity = `${project}/${stack}`;
+export const cloud = stackCoordinates.cloud;
+export const placementId = placement.id;
 export const deploymentMaturity = "planned-runtime";
 export const targetAwsAccount = targetAwsAccountId;
 export { region };
+export const activePlacement = placement;
 export const containerConfiguration = container;
 export const hostConfiguration = host;
 export const runtimeConfiguration = runtime;
@@ -159,10 +200,13 @@ export const identityContract = {
 export const deploymentRoleArn = deploymentRole.roleArn;
 export const downstreamContract = {
   status: "provisioned-after-apply",
+  cloud: stackCoordinates.cloud,
+  placementId: placement.id,
   modelName: runtime.modelName,
   modelRevision: cfg.require("modelRevision"),
   openAiBaseUrl: runtimeService.openAiBaseUrl,
   healthUrl: runtimeService.healthUrl,
+  firewallIdentity: runtimeService.firewallIdentity,
   securityGroupId: runtimeService.securityGroupId,
   instanceId: runtimeService.instanceId,
   privateIp: runtimeService.privateIp,

@@ -9,6 +9,7 @@
     "format": "prettier --write --ignore-unknown .",
     "format:check": "prettier --check --ignore-unknown .",
     "pulumi": "../security-governance/scripts/pulumi-with-auth.sh",
+    "placement:select": "node --import tsx scripts/select-placement.ts",
     "secrets:configure": "./scripts/configure-secrets.sh",
     "smoke:runtime": "node --import tsx scripts/runtime-smoke.ts",
     "test": "node --import tsx --test tests/**/*.test.ts"
