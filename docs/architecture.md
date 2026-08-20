@@ -119,8 +119,11 @@ Each deployment stack exports the narrow non-secret contract LiteLLM needs:
 The applied stack reports concrete endpoint and resource outputs while retaining
 `deploymentMaturity: planned-runtime`. The downstream status is
 `provisioned-after-apply`, which confirms infrastructure provisioning rather than
-runtime health. Consumers must not treat the contract as reachable until runtime
-verification succeeds.
+runtime health. First boot atomically publishes
+`/var/lib/carbonforge/bootstrap-ready` after host-local model discovery, token
+generation, container integrity, and GPU-use checks pass; Pulumi does not wait
+for that marker. Consumers must not treat the contract as reachable until
+runtime verification succeeds.
 
 ## Deployment identity
 

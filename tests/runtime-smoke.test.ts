@@ -62,6 +62,21 @@ test("validates completion shape without returning generated content", () => {
   assert.equal("content" in result, false);
 });
 
+test("requires a positive completion token count", () => {
+  assert.throws(
+    () =>
+      validateChatCompletion(
+        {
+          model: DEFAULT_SMOKE_MODEL,
+          choices: [{ finish_reason: "stop", message: { content: "Hello!" } }],
+          usage: { prompt_tokens: 8, completion_tokens: 0 },
+        },
+        DEFAULT_SMOKE_MODEL,
+      ),
+    /positive completion token count/,
+  );
+});
+
 test("queries models and chat completions with the fixed safe prompt", async (context) => {
   let receivedBody: unknown;
   const server = createServer((request, response) => {

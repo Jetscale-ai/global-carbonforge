@@ -33,8 +33,16 @@ general utilities and verifies the AMI-provided Docker and Compose binaries.
 Runtime startup exposed a second issue: prefetch used
 `/root/.cache/huggingface`, while offline vLLM defaulted to its `hub` subdirectory.
 The generated Compose environment now sets `HUGGINGFACE_HUB_CACHE` to the
-prefetch path and enables offline mode. Both runtime corrections are in generated
-user data and will apply to the next host without an SSM repair.
+prefetch path and enables offline mode. A subsequent clean Jakarta rebuild took
+about 17 minutes to pull the immutable image and pinned model, then required
+additional model-initialization time during which local requests could refuse or
+reset connections. Generated user data now waits through bounded model-discovery
+and token-generation checks, verifies container restart/OOM state and active GPU
+use, and atomically publishes `/var/lib/carbonforge/bootstrap-ready`. Failures
+exit cloud-init nonzero and record only a bounded phase name in
+`/var/lib/carbonforge/bootstrap-failed`; response bodies remain transient and are
+never printed. These runtime corrections apply to the next host without an SSM
+repair.
 
 ## Reproducibility contract
 

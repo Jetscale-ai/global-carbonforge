@@ -100,11 +100,18 @@ export function validateChatCompletion(
     );
   }
 
+  const completionTokens = asPositiveInteger(response.usage?.completion_tokens);
+  if (completionTokens === null) {
+    throw new Error(
+      "Chat completion response did not report a positive completion token count.",
+    );
+  }
+
   return {
     responseModel: response.model,
     finishReason: isString(choice.finish_reason) ? choice.finish_reason : null,
     promptTokens: asNonNegativeInteger(response.usage?.prompt_tokens),
-    completionTokens: asNonNegativeInteger(response.usage?.completion_tokens),
+    completionTokens,
   };
 }
 
@@ -199,6 +206,12 @@ function isString(value: unknown): value is string {
 
 function asNonNegativeInteger(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) && value >= 0
+    ? value
+    : null;
+}
+
+function asPositiveInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value > 0
     ? value
     : null;
 }

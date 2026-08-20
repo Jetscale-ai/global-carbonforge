@@ -259,7 +259,10 @@ The applied stack exports `deploymentMaturity: planned-runtime` and a downstream
 contract containing the model and revision plus concrete private URL, private IP,
 security group ID, and instance ID outputs. The status
 `provisioned-after-apply` means infrastructure exists; it is not a health signal.
-LiteLLM must reference this stack and create a standalone ingress rule on the
+Cloud-init publishes `/var/lib/carbonforge/bootstrap-ready` only after bounded
+host-local model discovery, token generation, container integrity, and GPU-use
+checks pass, but Pulumi does not wait for that marker. LiteLLM must reference
+this stack and create a standalone ingress rule on the
 exported CarbonForge security group, sourced from its own ECS task security
 group. CarbonForge does not reference LiteLLM.
 

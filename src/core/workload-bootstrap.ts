@@ -2,6 +2,8 @@ import type { RuntimeConfig } from "../runtime-config";
 
 export const GHCR_TOKEN_PATH = "/etc/carbonforge/ghcr-token";
 export const LICENSE_PATH = "/etc/carbonforge/license.key";
+export const BOOTSTRAP_READY_PATH = "/var/lib/carbonforge/bootstrap-ready";
+export const BOOTSTRAP_FAILURE_PATH = "/var/lib/carbonforge/bootstrap-failed";
 
 export type WorkloadBootstrapConfig = Pick<
   RuntimeConfig,
@@ -145,5 +147,108 @@ WantedBy=multi-user.target
 UNIT
 
 systemctl daemon-reload
-systemctl enable --now carbonforge.service`;
+systemctl enable --now carbonforge.service
+
+READINESS_DIR="$(mktemp -d /run/carbonforge-readiness.XXXXXX)"
+READINESS_PHASE="model_discovery"
+cleanup_readiness() {
+  status=$?
+  trap - EXIT
+  rm -rf "\${READINESS_DIR}"
+  if [ "\${status}" -ne 0 ]; then
+    marker="$(mktemp /var/lib/carbonforge/bootstrap-failed.XXXXXX)"
+    printf 'phase=%s\\n' "\${READINESS_PHASE}" > "\${marker}"
+    chmod 0600 "\${marker}"
+    mv -f "\${marker}" '${BOOTSTRAP_FAILURE_PATH}'
+  fi
+  exit "\${status}"
+}
+trap cleanup_readiness EXIT
+rm -f '${BOOTSTRAP_READY_PATH}' '${BOOTSTRAP_FAILURE_PATH}'
+
+EXPECTED_MODEL=${values.modelName}
+MODELS_URL='http://127.0.0.1:${config.runtimePort}/v1/models'
+COMPLETIONS_URL='http://127.0.0.1:${config.runtimePort}/v1/chat/completions'
+models_ready=false
+models_deadline=$((SECONDS + 1800))
+while [ "\${SECONDS}" -lt "\${models_deadline}" ]; do
+  models_http="$(curl --silent --show-error \
+    --connect-timeout 5 --max-time 30 \
+    --output "\${READINESS_DIR}/models.json" \
+    --write-out '%{http_code}' \
+    "\${MODELS_URL}" 2>/dev/null || true)"
+  if [ "\${models_http}" = '200' ] && jq -e --arg model "\${EXPECTED_MODEL}" \
+    '.data | type == "array" and any(.[]; .id == $model)' \
+    "\${READINESS_DIR}/models.json" >/dev/null 2>&1; then
+    models_ready=true
+    break
+  fi
+  sleep 10
+done
+if [ "\${models_ready}" != true ]; then
+  echo 'ERROR: CarbonForge model discovery did not become ready before the bounded timeout.' >&2
+  exit 1
+fi
+
+READINESS_PHASE="token_generation"
+jq -n --arg model "\${EXPECTED_MODEL}" '{
+  model: $model,
+  messages: [{role: "user", content: "Say hello."}],
+  max_tokens: 32,
+  temperature: 0
+}' > "\${READINESS_DIR}/completion-request.json"
+completion_ready=false
+completion_deadline=$((SECONDS + 300))
+while [ "\${SECONDS}" -lt "\${completion_deadline}" ]; do
+  completion_http="$(curl --silent --show-error \
+    --connect-timeout 5 --max-time 90 \
+    --header 'content-type: application/json' \
+    --request POST \
+    --data-binary "@\${READINESS_DIR}/completion-request.json" \
+    --output "\${READINESS_DIR}/completion-response.json" \
+    --write-out '%{http_code}' \
+    "\${COMPLETIONS_URL}" 2>/dev/null || true)"
+  if [ "\${completion_http}" = '200' ] && jq -e --arg model "\${EXPECTED_MODEL}" '
+    (.error == null) and
+    (.model == $model) and
+    (.choices | type == "array" and length > 0) and
+    (.usage.completion_tokens | type == "number" and . > 0)
+  ' "\${READINESS_DIR}/completion-response.json" >/dev/null 2>&1; then
+    completion_ready=true
+    break
+  fi
+  sleep 10
+done
+if [ "\${completion_ready}" != true ]; then
+  echo 'ERROR: CarbonForge did not generate tokens before the bounded timeout.' >&2
+  exit 1
+fi
+
+READINESS_PHASE="runtime_integrity"
+container_id="$(docker compose \
+  --project-directory /opt/carbonforge \
+  --file /opt/carbonforge/docker-compose.yml \
+  ps -q carbonforge)"
+if [ -z "\${container_id}" ]; then
+  echo 'ERROR: CarbonForge container is not running.' >&2
+  exit 1
+fi
+container_state="$(docker inspect --format '{{.RestartCount}} {{.State.OOMKilled}} {{.State.Running}}' "\${container_id}")"
+if [ "\${container_state}" != '0 false true' ]; then
+  echo 'ERROR: CarbonForge container failed restart, OOM, or running-state checks.' >&2
+  exit 1
+fi
+if ! nvidia-smi --query-compute-apps=used_memory --format=csv,noheader,nounits \
+  | awk '$1 + 0 > 0 { found = 1 } END { exit !found }'; then
+  echo 'ERROR: CarbonForge readiness completed without an active GPU compute process.' >&2
+  exit 1
+fi
+
+READINESS_PHASE="publish_marker"
+ready_marker="$(mktemp /var/lib/carbonforge/bootstrap-ready.XXXXXX)"
+printf 'model=%s\\nstatus=ready\\n' "\${EXPECTED_MODEL}" > "\${ready_marker}"
+chmod 0600 "\${ready_marker}"
+mv -f "\${ready_marker}" '${BOOTSTRAP_READY_PATH}'
+trap - EXIT
+rm -rf "\${READINESS_DIR}"`;
 }

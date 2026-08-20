@@ -108,6 +108,11 @@ instance when its rendered input changes. It must continue to:
 - prefetch the pinned public Hugging Face model revision and persist its cache on
   an encrypted volume;
 - start the service under a supervised unit with bounded restart behavior;
+- keep cloud-init running through bounded model-discovery, token-generation,
+  container-integrity, and GPU-use checks, then atomically publish
+  `/var/lib/carbonforge/bootstrap-ready`;
+- write only the failed phase to `/var/lib/carbonforge/bootstrap-failed` and fail
+  cloud-init when readiness does not converge, without logging response content;
 - emit content-safe operational logs with request tracing explicitly off until
   an approved sink and retention design exist;
 - expose port `8000` only through the workload security group.

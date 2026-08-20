@@ -1,14 +1,16 @@
 # Verification runbook
 
-Direct model discovery and token generation were verified on a Jakarta H100 on
-2026-08-20. Bootstrap initially failed when Ubuntu unattended upgrades held the
-dpkg lock; the retained bootstrap script was recovered through a tagged SSM
-session after adding bounded package-lock waits to the source script. That
-allocation was subsequently destroyed and recreated to obtain replacement
-capacity, so repeat every check below on the current host. Storage, telemetry,
-and LiteLLM handoff evidence remain open. Do not place credentials, licence
-values, prompts containing sensitive data, or generated user content in
-verification logs or tickets.
+Direct model discovery and token generation were verified on the rebuilt Jakarta
+H100 on 2026-08-20. A fresh boot took about 17 minutes to pull the immutable
+image and pinned model, followed by additional model-initialization time. EC2 and
+SSM became available before the runtime; early readiness requests saw expected
+connection refusals and resets before the fixed completion succeeded. Bootstrap
+now tolerates those transient failures within bounded deadlines and publishes a
+non-secret readiness marker only after model discovery, token generation,
+container-integrity, and GPU-use checks pass. Storage, telemetry, and LiteLLM
+handoff evidence remain open. Do not place credentials, licence values, prompts
+containing sensitive data, or generated user content in verification logs or
+tickets.
 
 ## Infrastructure checks
 
@@ -25,10 +27,16 @@ verification logs or tickets.
    `97f5941bf617e31c5e237364a8602ce3f03a551a`, and runtime is offline.
 6. Through SSM, verify `systemctl status carbonforge`, `docker compose ps`,
    `nvidia-smi`, and `/var/log/carbonforge-bootstrap.log` without copying secret
-   material into evidence.
-7. Confirm the effective container process command contains the pinned Qwen3.5
+   material into evidence. Do not treat EC2 or SSM availability as runtime
+   readiness.
+7. Require `/var/lib/carbonforge/bootstrap-ready` and confirm
+   `/var/lib/carbonforge/bootstrap-failed` is absent. The ready marker contains
+   only the expected model and `status=ready`; a failure marker contains only the
+   failed phase. If neither marker exists, cloud-init is still running or ended
+   before the readiness contract could publish a result.
+8. Confirm the effective container process command contains the pinned Qwen3.5
    model and does not contain `--dry-run` or `Qwen/Qwen2.5-7B-Instruct`.
-8. Record driver and CUDA compatibility, root-volume free space, Docker storage
+9. Record driver and CUDA compatibility, root-volume free space, Docker storage
    use, model-cache size, and SSM reachability.
 
 ## Runtime checks
@@ -58,9 +66,10 @@ gpu_used_mib=55321
 
 This proves direct model discovery and bounded token generation on the allocated
 H100. It does not prove throughput, sustained latency, availability, or LiteLLM
-connectivity. The first request during model initialization reset its connection;
-the container stayed running without an OOM or restart, and the subsequent
-bounded request succeeded.
+connectivity. During fresh boot, model discovery may initially refuse or reset
+connections while the container remains running. The generated bootstrap retries
+model discovery for at most 30 minutes and token generation for at most 5
+minutes; a timeout fails cloud-init and records only the failed phase.
 
 For repeat verification, run the automated smoke test from an authorized
 private-network client:
@@ -94,8 +103,10 @@ Then confirm the health endpoint is healthy. For the downstream handoff:
    metadata.
 
 Do not mark the service reachable merely because the Pulumi apply succeeds.
-Reachability requires the private health, model discovery, direct completion,
-and LiteLLM completion checks.
+Pulumi reports EC2 provisioning before cloud-init necessarily completes. The
+bootstrap-ready marker proves host-local model discovery, token generation, and
+runtime integrity; downstream promotion still requires the private health,
+direct completion, and LiteLLM completion checks.
 
 ## Telemetry checks
 
