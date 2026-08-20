@@ -1,12 +1,14 @@
 # Verification runbook
 
-Direct model discovery and token generation were verified on the original
-Jakarta H100 on 2026-08-11. That host was subsequently destroyed; the historical
-evidence proves runtime compatibility but does not describe current
-availability. Repeat every check below after a replacement H100 is provisioned.
-Storage, driver/CUDA, telemetry, and LiteLLM handoff evidence remain open. Do not
-place credentials, licence values, prompts containing sensitive data, or
-generated user content in verification logs or tickets.
+Direct model discovery and token generation were verified on a Jakarta H100 on
+2026-08-20. Bootstrap initially failed when Ubuntu unattended upgrades held the
+dpkg lock; the retained bootstrap script was recovered through a tagged SSM
+session after adding bounded package-lock waits to the source script. That
+allocation was subsequently destroyed and recreated to obtain replacement
+capacity, so repeat every check below on the current host. Storage, telemetry,
+and LiteLLM handoff evidence remain open. Do not place credentials, licence
+values, prompts containing sensitive data, or generated user content in
+verification logs or tickets.
 
 ## Infrastructure checks
 
@@ -31,23 +33,34 @@ generated user content in verification logs or tickets.
 
 ## Runtime checks
 
-Recovery verification through SSM recorded the following sanitized result:
+Recovery verification through SSM on 2026-08-20 recorded the following
+sanitized historical result for the subsequently destroyed allocation:
 
 ```text
+instance_id=i-0a48ac2883c21c468
+availability_zone=ap-southeast-3a
+instance_type=p5.4xlarge
+public_ipv4=none
+ssm_status=Online
 models_http=200
+expected_model_listed=true
 completion_http=200
-completion_tokens=8
+completion_model=Qwen/Qwen3.5-27B-FP8
+prompt_tokens=13
+completion_tokens=32
+total_tokens=45
 finish_reason=length
+duration_seconds=1
 restart_count=0
 oom_killed=false
-gpu_used_mib=55090
+gpu_used_mib=55321
 ```
 
 This proves direct model discovery and bounded token generation on the allocated
-H100. It does not prove throughput, latency, availability, or LiteLLM
+H100. It does not prove throughput, sustained latency, availability, or LiteLLM
 connectivity. The first request during model initialization reset its connection;
 the container stayed running without an OOM or restart, and the subsequent
-bounded request succeeded on its first attempt.
+bounded request succeeded.
 
 For repeat verification, run the automated smoke test from an authorized
 private-network client:

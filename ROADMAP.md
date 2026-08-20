@@ -14,13 +14,14 @@ OpenAI-compatible completion both returned HTTP 200 without a container restart
 or OOM. That host was subsequently destroyed after repeated Jakarta replacement
 capacity failures.
 
-The live stacks currently have no H100. AWS reported insufficient `p5.4xlarge`
-capacity in N. Virginia and Ohio `us-east-2a` and `us-east-2b`, then identified
-`us-east-2c` as the remaining Ohio alternative. The next isolated stack targets
-`us-east-2c`. Every offered AZ in N. Virginia, Ohio, Oregon, London, Mumbai,
-Tokyo, Jakarta, and São Paulo now has a committed isolated stack configuration
-backed by approved 32-vCPU quota and a governed network. Offering and quota do
-not guarantee physical capacity.
+The active placement is Jakarta `ap-southeast-3a`, where a human-operated
+release and recreate obtained replacement `p5.4xlarge` capacity after a
+create-before-delete attempt failed. Runtime verification below belongs to the
+preceding Jakarta allocation and must be repeated on the recreated host before
+it is considered healthy. Every offered AZ in N. Virginia, Ohio, Oregon, London,
+Mumbai, Tokyo, Jakarta, and São Paulo has an isolated stack configuration backed
+by approved 32-vCPU quota and a governed network. Offering and quota do not
+guarantee physical capacity.
 
 The critical path is now:
 
@@ -209,8 +210,32 @@ investment, expansion, or shutdown.
 - Complete threat modeling, audit evidence, and service ownership handoff.
 - Evaluate scaling, multi-AZ alternatives, and retirement criteria.
 
-**Exit gate:** accepted production-readiness decision. This is not implied by
-completion of any prior phase.
+### Strategic H100 capacity assurance
+
+- Evaluate ordinary On-Demand capacity, targeted On-Demand Capacity
+  Reservations, and Capacity Blocks for ML against the service's availability,
+  duration, recovery-time, and cost requirements.
+- Keep capacity acquisition separate from routine runtime deployment so a
+  normal stack update cannot silently purchase an irreversible commitment.
+- Add explicit, fail-closed capacity modes such as `on-demand`,
+  `existing-odcr`, `managed-odcr`, and `existing-capacity-block`; default to
+  ordinary On-Demand capacity and prohibit implicit purchases.
+- Validate that every selected reservation matches the runtime's instance type,
+  platform, region, Availability Zone, tenancy, and intended lifecycle before
+  instance creation.
+- Preserve create-before-delete replacement semantics unless reserved capacity
+  and a reviewed migration procedure prove that another strategy is safer.
+  Releasing an H100 does not reserve it for the replacement request.
+- Require explicit human approval and current cost evidence before creating an
+  On-Demand Capacity Reservation or purchasing a Capacity Block. Record that
+  Capacity Blocks are prepaid, non-cancellable, expire at a fixed time, and are
+  not undone by `pulumi destroy`.
+- Define monitoring and renewal or expiry procedures so reservation drift or a
+  Capacity Block termination window cannot silently remove serving capacity.
+
+**Exit gate:** accepted production-readiness decision, including a reviewed
+capacity strategy, cost envelope, failure-mode test, and recovery runbook. This
+is not implied by completion of any prior phase.
 
 ## Explicit non-goals
 

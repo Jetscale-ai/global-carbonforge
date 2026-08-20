@@ -30,8 +30,8 @@ export DEBIAN_FRONTEND=noninteractive
 export AWS_REGION=${shellQuote(config.region)}
 export AWS_DEFAULT_REGION=${shellQuote(config.region)}
 
-apt-get update
-apt-get install -y awscli ca-certificates curl gnupg jq
+apt-get -o DPkg::Lock::Timeout=900 update
+apt-get -o DPkg::Lock::Timeout=900 install -y awscli ca-certificates curl gnupg jq
 
 if ! dpkg -s nvidia-container-toolkit >/dev/null 2>&1; then
   curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
@@ -39,8 +39,8 @@ if ! dpkg -s nvidia-container-toolkit >/dev/null 2>&1; then
   curl -fsSL https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
     | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
     > /etc/apt/sources.list.d/nvidia-container-toolkit.list
-  apt-get update
-  apt-get install -y nvidia-container-toolkit
+  apt-get -o DPkg::Lock::Timeout=900 update
+  apt-get -o DPkg::Lock::Timeout=900 install -y nvidia-container-toolkit
   nvidia-ctk runtime configure --runtime=docker
   systemctl restart docker
 fi

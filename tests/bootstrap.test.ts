@@ -79,6 +79,19 @@ test("overrides the vendor default with the validated runtime command", () => {
   assert.doesNotMatch(script, /Qwen2\.5|CF_VLLM_MODEL|CF_SCHEDULER/);
 });
 
+test("waits for transient package-manager locks during bootstrap", () => {
+  const script = renderBootstrapScript(config);
+  const aptCommands = script
+    .split("\n")
+    .filter((line) => line.trimStart().startsWith("apt-get "));
+
+  assert.ok(aptCommands.length >= 4);
+  assert.ok(
+    aptCommands.every((line) => line.includes("DPkg::Lock::Timeout=900")),
+    "every apt invocation must wait for the DLAMI unattended-upgrade lock",
+  );
+});
+
 test("requires the pinned DLAMI Docker stack without conflicting packages", () => {
   const script = renderBootstrapScript(config);
 

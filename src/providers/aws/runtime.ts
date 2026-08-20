@@ -7,6 +7,7 @@ import { renderBootstrapScript } from "../../bootstrap";
 export const SECRET_RECOVERY_WINDOW_DAYS = 0;
 export const GHCR_TOKEN_SECRET_NAME_SUFFIX = "ghcr-pull-token-";
 export const LICENSE_SECRET_NAME_SUFFIX = "license-key-";
+export const INSTANCE_DELETE_BEFORE_REPLACE = false;
 
 export type CarbonForgeRuntimeArgs = {
   amiId: pulumi.Input<string>;
@@ -249,6 +250,7 @@ export class CarbonForgeRuntime
       {
         parent: this,
         dependsOn: [ghcrTokenVersion, licenseVersion],
+        deleteBeforeReplace: INSTANCE_DELETE_BEFORE_REPLACE,
       },
     );
 
