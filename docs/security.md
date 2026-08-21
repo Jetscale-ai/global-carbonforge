@@ -30,8 +30,10 @@ verify the Pulumi encrypted inputs exist before destroying the stack.
 
 - No public IPv4 address for the workload.
 - No SSH ingress or routine SSH private keys.
-- The runtime security group starts with no ingress. LiteLLM owns the eventual
-  TCP `8000` rule sourced from its ECS task security group.
+- The runtime security group allows TCP `8000` only from the validated private
+  workload source exported by `global-cloud-network`: the LiteLLM task security
+  group for same-VPC placement or the primary workload VPC CIDR for cross-region
+  peering.
 - AWS Systems Manager Session Manager for administration.
 - Existing network resources are consumed from `global-cloud-network`.
 

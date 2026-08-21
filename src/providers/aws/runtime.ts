@@ -10,6 +10,7 @@ export const LICENSE_SECRET_NAME_SUFFIX = "license-key-";
 export const INSTANCE_DELETE_BEFORE_REPLACE = false;
 
 export type CarbonForgeRuntimeArgs = {
+  allowedInferenceCidr: pulumi.Input<string>;
   amiId: pulumi.Input<string>;
   availabilityZone: pulumi.Input<string>;
   ghcrPullToken: pulumi.Input<string>;
@@ -161,6 +162,21 @@ export class CarbonForgeRuntime
         description:
           "CarbonForge runtime; ingress is owned by authorized consumers",
         vpcId: args.vpcId,
+        tags,
+      },
+      { parent: this },
+    );
+
+    new aws.vpc.SecurityGroupIngressRule(
+      `${name}-inference-ipv4`,
+      {
+        securityGroupId: securityGroup.id,
+        ipProtocol: "tcp",
+        fromPort: args.runtimePort,
+        toPort: args.runtimePort,
+        cidrIpv4: args.allowedInferenceCidr,
+        description:
+          "OpenAI-compatible inference from the authorized workload VPC",
         tags,
       },
       { parent: this },

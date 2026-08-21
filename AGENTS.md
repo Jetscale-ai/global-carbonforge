@@ -114,8 +114,10 @@ The selected bundles are:
 ## 4. Network and Runtime Boundaries
 
 - The inference endpoint is private by default.
-- TCP port `8000` may accept traffic only from explicitly authorized workload
-  security groups, initially the LiteLLM ECS task security group.
+- TCP port `8000` may accept traffic only from explicitly authorized private
+  workload sources. Prefer the LiteLLM ECS task security group when both
+  workloads share a VPC; cross-region peering must use the network-owned primary
+  workload VPC CIDR validated through the exported transport contract.
 - Do not assign a public IPv4 address or expose the service directly to the
   internet for the POC unless a reviewed decision explicitly changes this
   boundary.

@@ -17,9 +17,9 @@ tickets.
 1. Confirm the workload exists in account `728827482753` and the intended
    private subnet.
 2. Confirm there is no public IPv4 address and no SSH ingress.
-3. Confirm the CarbonForge security group initially has no ingress. After
-   LiteLLM integration, confirm its standalone TCP `8000` rule is sourced only
-   from the intended LiteLLM ECS task security group.
+3. Confirm the CarbonForge security group has exactly the intended standalone
+   TCP `8000` ingress from the primary private workload VPC CIDR exported by
+   `global-cloud-network`, with no public or broader source.
 4. Confirm Systems Manager can administer the instance using the approved role.
 5. Confirm the running container resolves to
    `ghcr.io/jetscale-ai/carbonforge-eval@sha256:a3999f60989e47d9059cfedb0999a2342adb41cad1f20999938ac3a8f4f0d5de`,
@@ -94,10 +94,10 @@ The test:
 
 Then confirm the health endpoint is healthy. For the downstream handoff:
 
-1. `global-inference-litellm` reads this stack's downstream contract through a
-   one-way StackReference.
-2. LiteLLM creates a standalone TCP `8000` ingress rule on the exported
-   CarbonForge security group, sourced only from its ECS task security group.
+1. `global-inference-litellm` reads this stack's downstream and validated
+   network contracts through a one-way StackReference.
+2. Confirm `global-cloud-network` reports the selected region's peering active
+   and both private route directions present.
 3. LiteLLM registers `Qwen/Qwen3.5-27B-FP8` against the private base URL.
 4. Run the equivalent fixed request through LiteLLM and retain only sanitized
    metadata.

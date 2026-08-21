@@ -63,11 +63,12 @@ flowchart LR
 ```
 
 The H100 workload is private, has no public IPv4 address, and exposes no SSH.
-Its security group starts with no ingress. After CarbonForge is deployed,
-LiteLLM creates a standalone TCP `8000` ingress rule targeting the exported
-CarbonForge security group and sourced from its own ECS task security group.
-This keeps stack dependencies one-way. Administration uses Systems Manager
-Session Manager.
+`global-cloud-network` owns the inter-region VPC peering and private routes.
+CarbonForge validates that the active transport targets its regional VPC and
+originates in the primary `us-east-1` workload VPC, then creates a standalone TCP
+`8000` ingress rule sourced only from that private VPC CIDR. LiteLLM reads the
+resulting endpoint contract without being referenced upstream, preserving
+one-way dependencies. Administration uses Systems Manager Session Manager.
 
 ## Container supply chain
 
@@ -114,7 +115,9 @@ Each deployment stack exports the narrow non-secret contract LiteLLM needs:
 - `modelName` and `modelRevision`: pinned serving-model identity;
 - `firewallIdentity`: provider-native workload firewall identity;
 - `securityGroupId`: transitional AWS security-group identity; and
-- `instanceId`: operational identity for SSM and alarms.
+- `instanceId`: operational identity for SSM and alarms; and
+- `networkContract.privateInferenceTransport`: the validated network-owned
+  peering and CIDR contract used by the runtime ingress rule.
 
 The applied stack reports concrete endpoint and resource outputs while retaining
 `deploymentMaturity: planned-runtime`. The downstream status is

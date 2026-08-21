@@ -261,17 +261,19 @@ security group ID, and instance ID outputs. The status
 `provisioned-after-apply` means infrastructure exists; it is not a health signal.
 Cloud-init publishes `/var/lib/carbonforge/bootstrap-ready` only after bounded
 host-local model discovery, token generation, container integrity, and GPU-use
-checks pass, but Pulumi does not wait for that marker. LiteLLM must reference
-this stack and create a standalone ingress rule on the
-exported CarbonForge security group, sourced from its own ECS task security
-group. CarbonForge does not reference LiteLLM.
+checks pass, but Pulumi does not wait for that marker. The stack consumes the
+network-owned `privateInferenceTransport` for its active region, fails closed
+unless that peering is active and targets its VPC, and permits TCP `8000` only
+from the transport's primary workload VPC CIDR. LiteLLM references this stack but
+CarbonForge does not reference LiteLLM, preserving one-way dependencies.
 
 ## Security and operational boundaries
 
 - The provisioned endpoint is private, with no public IPv4 address or public port
   `8000`.
-- The CarbonForge security group starts with no ingress. LiteLLM will add TCP
-  `8000` ingress sourced only from its ECS task security group.
+- The CarbonForge security group permits TCP `8000` only from the validated
+  private workload VPC CIDR exported by `global-cloud-network`; no public CIDR
+  or arbitrary configured source is accepted.
 - Administration uses AWS Systems Manager Session Manager, not SSH ingress.
 - Bootstrap materializes secrets from AWS Secrets Manager at runtime with
   restrictive permissions.

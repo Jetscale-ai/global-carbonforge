@@ -146,6 +146,9 @@ if (!container.immutableReference) {
 }
 
 const runtimeService = new CarbonForgeRuntime("carbonforge", {
+  allowedInferenceCidr: network.privateInferenceTransport.apply(
+    ({ requesterVpcCidr }) => requesterVpcCidr,
+  ),
   amiId: placement.amiId,
   availabilityZone,
   ghcrPullToken: runtimeSecrets.ghcrPullToken,
@@ -192,6 +195,7 @@ export const runtimeConfiguration = runtime;
 export const networkContract = {
   vpcId: network.vpcId,
   privateSubnetIds: network.privateSubnetIds,
+  privateInferenceTransport: network.privateInferenceTransport,
 };
 export const identityContract = {
   pulumiOidcProviderArn: identity.pulumiOidcProviderArn,
