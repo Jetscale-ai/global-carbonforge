@@ -5,6 +5,8 @@ lib/
 node_modules/
 tsconfig.tsbuildinfo
 
+.playwright-mcp/
+
 *.log
 .DS_Store
 .idea/

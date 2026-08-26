@@ -146,9 +146,7 @@ if (!container.immutableReference) {
 }
 
 const runtimeService = new CarbonForgeRuntime("carbonforge", {
-  allowedInferenceCidr: network.privateInferenceTransport.apply(
-    ({ requesterVpcCidr }) => requesterVpcCidr,
-  ),
+  allowedInferenceCidr: network.allowedInferenceCidr,
   amiId: placement.amiId,
   availabilityZone,
   ghcrPullToken: runtimeSecrets.ghcrPullToken,
@@ -195,6 +193,7 @@ export const runtimeConfiguration = runtime;
 export const networkContract = {
   vpcId: network.vpcId,
   privateSubnetIds: network.privateSubnetIds,
+  allowedInferenceCidr: network.allowedInferenceCidr,
   privateInferenceTransport: network.privateInferenceTransport,
 };
 export const identityContract = {
