@@ -142,19 +142,30 @@ For each candidate stack:
 
 ## Parallel Probing
 
-Parallel probing is allowed only when the user explicitly asks for it.
+Prefer parallel region lanes when sub-agents are available. Assign one sub-agent
+per eligible region and probe that region's AZ stacks sequentially. This reduces
+total hunt time without making same-region probes compete against the regional
+P-instance quota.
+
+Use sequential probing instead when the user requests ordered first-success
+behavior, sub-agents are unavailable, or concurrent successful allocations
+would exceed the approved cost boundary.
 
 When parallelizing:
 
-- use sub-agents with disjoint stack lists;
+- use sub-agents with disjoint regional stack lists;
+- probe AZs sequentially within each region;
 - give every sub-agent the same authority, wrapper-only, cleanup, and no-secrets
   instructions;
 - require every sub-agent to destroy partial stacks after capacity failures;
-- require every sub-agent to leave successful stacks alive;
-- warn that parallel successes can reserve multiple expensive accelerators;
+- require every sub-agent to stop its regional lane and leave the first
+  successful stack alive;
+- warn that parallel region successes can reserve multiple expensive
+  accelerators;
 - reconcile results with `pulumi stack ls` after all agents finish.
 
-Do not parallelize multiple operations against the same stack.
+Do not parallelize multiple operations against the same stack or multiple AZs in
+the same region.
 
 ## Reporting
 
